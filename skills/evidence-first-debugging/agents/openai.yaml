@@ -1,0 +1,6 @@
+interface:
+  display_name: "Evidence-First Debugging"
+  short_description: "Diagnose bugs with evidence before hypotheses"
+  default_prompt: "Use $evidence-first-debugging to diagnose this unexpected behavior with an evidence table before proposing a fix."
+policy:
+  allow_implicit_invocation: true
