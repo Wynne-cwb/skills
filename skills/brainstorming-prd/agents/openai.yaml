@@ -1,0 +1,6 @@
+interface:
+  display_name: "Brainstorming PRD"
+  short_description: "Turn product ideas into PRDs for GSD handoff"
+  default_prompt: "Use $brainstorming-prd to turn this idea into a reviewed PRD under prds/ before handing it to GSD."
+policy:
+  allow_implicit_invocation: true

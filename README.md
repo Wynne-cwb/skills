@@ -10,6 +10,12 @@ Install the `evidence-first-debugging` skill globally with `add-skill`:
 npx skills add Wynne-cwb/skills --skill evidence-first-debugging -g -a claude-code
 ```
 
+Install the `brainstorming-prd` skill globally into Claude Code:
+
+```bash
+npx skills add Wynne-cwb/skills --skill brainstorming-prd -g -a claude-code
+```
+
 The same repository can also be installed into other agents:
 
 ```bash
