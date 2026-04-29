@@ -10,7 +10,7 @@ fi
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 NAME="$1"
 TARGET_DIR="$ROOT_DIR/skills/$NAME"
-TEMPLATE_DIR="$ROOT_DIR/skills/_template"
+TEMPLATE_DIR="$ROOT_DIR/templates/skill"
 
 if [[ ! "$NAME" =~ ^[a-z0-9-]+$ ]]; then
   echo "Skill name must be kebab-case: lowercase letters, numbers, and hyphens only."

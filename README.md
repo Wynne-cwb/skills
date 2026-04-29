@@ -1,11 +1,25 @@
 # Personal Skills Repo
 
-This repository is the source of truth for custom Codex skills you use regularly.
+This repository is the source of truth for custom agent skills you use regularly.
+
+## Install
+
+Install the `evidence-first-debugging` skill globally with `add-skill`:
+
+```bash
+npx skills add Wynne-cwb/skills --skill evidence-first-debugging -g -a claude-code
+```
+
+The same repository can also be installed into other agents:
+
+```bash
+npx skills add Wynne-cwb/skills --skill evidence-first-debugging -g -a codex -a opencode
+```
 
 ## Structure
 
 - `skills/`: each subdirectory is one skill
-- `skills/_template/`: starter layout for a new skill
+- `templates/skill/`: starter layout for a new skill
 - `scripts/new-skill.sh`: scaffold a new skill directory
 - `scripts/sync-to-codex.sh`: symlink one or more local skills into `~/.codex/skills`
 
