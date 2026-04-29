@@ -16,6 +16,7 @@ Use this skill when the user asks why something did not behave as expected, why 
 5. If evidence is insufficient, say so plainly and add the smallest useful temporary instrumentation before changing business logic.
 6. Do not use strong wording such as "confirmed", "locked", "definitive", or "closed evidence chain" unless the key runtime evidence has been checked.
 7. Validate write paths with write evidence. A read path that looks consistent with your hypothesis does not prove where data should be written. Reads may succeed through getters, fallbacks, proxies, prototype chains, lazy migration shims, or framework behavior that does not apply to writes. Before committing a write-path fix, find a working write call site, the deserialization/initialization path that proves where data lives at rest, or the persistence/save path that proves what the system later reads. If you only have read-path inference, label it as a current hypothesis.
+8. Treat temporary instrumentation as a lifecycle, not a deliverable. Add it to collect evidence, use it to confirm or reject the hypothesis, then remove it after the issue is fixed or the user confirms the issue is fixed unless there is an explicit decision to keep it behind a safe debug gate.
 
 ## Evidence Table
 
@@ -46,10 +47,11 @@ Before changing product logic, check whether the evidence supports the direction
 - If the issue can be reproduced locally, reproduce it and capture output before editing.
 - If the issue cannot be reproduced, add temporary logs that the agent or user can retrieve after one reproduction.
 - If the fix changes a write, mutation, or persistence path, do not ship based only on a matching read path. Require either a working write-path analog in the same codebase, or a runtime/integration check proving the written data is observable through the system's actual read, save, or downstream consumption path.
+- If you added temporary instrumentation and the issue is later fixed or verified, remove the instrumentation before finishing unless the user explicitly wants to keep it. If kept, gate it, document why, and ensure it is safe for normal usage.
 
 ## Temporary Instrumentation
 
-When adding logs, optimize for evidence that a later agent can consume without asking the user to manually summarize it.
+When adding logs, optimize for evidence that a later agent can consume without asking the user to manually summarize it. Temporary instrumentation is encouraged when it closes an evidence gap, but it must be scoped, behavior-preserving, and cleaned up.
 
 Instrumentation must:
 
@@ -59,6 +61,15 @@ Instrumentation must:
 - Avoid secrets, tokens, cookies, authorization headers, raw PII, and huge payloads.
 - Prefer structured JSON or JSONL over prose.
 - Be easy to remove, downgrade behind a debug flag, or keep only in local/dev paths after the issue is fixed.
+
+Follow this lifecycle:
+
+1. Add the smallest behavior-preserving instrumentation needed around the missing evidence.
+2. Collect evidence through a reproduction.
+3. Read and interpret the collected logs.
+4. Use the evidence to confirm, reject, or revise the hypothesis.
+5. Fix and verify the issue.
+6. Remove the temporary instrumentation after verification or after the user confirms the issue is fixed. Keep it only if there is an intentional debug-only decision.
 
 ## Node.js Logging Pattern
 
@@ -113,6 +124,20 @@ Good places to log:
 - Early return, short-circuit, skip, retry, fallback, or error paths.
 
 Do not import `node:fs` into browser bundles. Node.js file logging belongs only in server-side or CLI code.
+
+## Node.js Self-Closure
+
+For Node.js, CLI, or server-side issues, close the evidence loop yourself whenever the user provides a reproducible command or the repo contains a runnable repro.
+
+Use this flow:
+
+1. Add temporary JSONL instrumentation.
+2. Clear or rotate the old debug log so the next run is easy to inspect.
+3. Run the repro command yourself, such as `curl`, an npm script, a CLI command, or a focused test.
+4. Read the local log file yourself.
+5. Update the evidence table before changing the fix direction.
+
+Do not ask the user to paste logs that you can read directly. Ask for help only when the reproduction depends on user-only state, credentials, private browser session data, or an environment you cannot access.
 
 ## Browser Logging Pattern
 
@@ -186,6 +211,8 @@ Good browser evidence includes:
 - Whether event handlers, effects, callbacks, route changes, or async completions ran.
 - Browser screenshots only when visual state matters.
 
+For browser-side issues, if you cannot directly operate the user's authenticated browser state, ask the user to reproduce once after instrumentation. Give exact steps and a single copy command for the debug buffer. Keep missing browser evidence explicit; do not fill it with guesses.
+
 ## Privacy And Payload Safety
 
 Log summaries, not secrets. Prefer these safe forms:
@@ -223,7 +250,8 @@ If you added instrumentation, include:
 - Where the log is written or how to copy it.
 - What action the user should reproduce.
 - What evidence you expect the log to confirm or rule out.
-- A reminder that the temporary log should be removed, gated, or downgraded after diagnosis.
+- Whether the agent can self-run the reproduction and read the log, or whether the user must reproduce in the browser.
+- The cleanup action taken after the fix, or the reason a debug-gated log remains.
 
 ## Anti-Patterns
 
@@ -235,6 +263,8 @@ Avoid these:
 - Adding broad noisy logs instead of targeted logs around the decision point.
 - Logging raw secrets or large user payloads.
 - Leaving temporary instrumentation in production paths without a debug gate or cleanup plan.
+- Asking the user to paste Node.js, CLI, or server logs that the agent can read locally after running the provided reproduction command.
+- Finishing after the user says the issue is fixed while leaving temporary instrumentation in place without removing it or explicitly gating it.
 - Inferring a write API from a read call site without checking sibling write handlers, mutation handlers, serializers, or save paths in the same module.
 - Treating a mocked unit test as proof of business correctness. A mock confirming `obj.method()` was called proves the interaction happened, not that the method writes to the location the rest of the system reads from.
 - Accepting a test that only verifies the local code path when the real contract is whether persisted or mutated state is observable from the actual downstream read path.
