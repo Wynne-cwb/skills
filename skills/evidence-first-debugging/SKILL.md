@@ -15,6 +15,7 @@ Use this skill when the user asks why something did not behave as expected, why 
 4. If the user challenges your hypothesis, look for missing evidence first instead of immediately switching to another hypothesis.
 5. If evidence is insufficient, say so plainly and add the smallest useful temporary instrumentation before changing business logic.
 6. Do not use strong wording such as "confirmed", "locked", "definitive", or "closed evidence chain" unless the key runtime evidence has been checked.
+7. Validate write paths with write evidence. A read path that looks consistent with your hypothesis does not prove where data should be written. Reads may succeed through getters, fallbacks, proxies, prototype chains, lazy migration shims, or framework behavior that does not apply to writes. Before committing a write-path fix, find a working write call site, the deserialization/initialization path that proves where data lives at rest, or the persistence/save path that proves what the system later reads. If you only have read-path inference, label it as a current hypothesis.
 
 ## Evidence Table
 
@@ -44,6 +45,7 @@ Before changing product logic, check whether the evidence supports the direction
 - If only static code reading supports the hypothesis, label it as a hypothesis.
 - If the issue can be reproduced locally, reproduce it and capture output before editing.
 - If the issue cannot be reproduced, add temporary logs that the agent or user can retrieve after one reproduction.
+- If the fix changes a write, mutation, or persistence path, do not ship based only on a matching read path. Require either a working write-path analog in the same codebase, or a runtime/integration check proving the written data is observable through the system's actual read, save, or downstream consumption path.
 
 ## Temporary Instrumentation
 
@@ -233,3 +235,6 @@ Avoid these:
 - Adding broad noisy logs instead of targeted logs around the decision point.
 - Logging raw secrets or large user payloads.
 - Leaving temporary instrumentation in production paths without a debug gate or cleanup plan.
+- Inferring a write API from a read call site without checking sibling write handlers, mutation handlers, serializers, or save paths in the same module.
+- Treating a mocked unit test as proof of business correctness. A mock confirming `obj.method()` was called proves the interaction happened, not that the method writes to the location the rest of the system reads from.
+- Accepting a test that only verifies the local code path when the real contract is whether persisted or mutated state is observable from the actual downstream read path.
