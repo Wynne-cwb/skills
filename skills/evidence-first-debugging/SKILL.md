@@ -211,6 +211,74 @@ Good browser evidence includes:
 - Whether event handlers, effects, callbacks, route changes, or async completions ran.
 - Browser screenshots only when visual state matters.
 
+## Browser Self-Closure
+
+For browser-side issues, close the evidence loop yourself when a controllable browser session is available.
+
+Preferred browser evidence order:
+
+1. Controllable authenticated browser session. Example: in Codex, try the Codex Chrome Extension path first when the issue depends on the user's logged-in state, real account data, workspace data, embedded browser state, or production-like permissions.
+2. Controllable non-authenticated browser session, such as an in-app browser or local Playwright browser, when authentication is irrelevant or easy to reproduce.
+3. User-assisted reproduction with a copy-friendly debug buffer.
+4. Static code inference only as supporting evidence.
+
+Use this flow when the user provides a clear browser reproduction path, target URL, or an authenticated browser session the agent can operate:
+
+1. Connect to the browser and confirm the target tab, URL, title, and login/session relevance.
+2. Reproduce the user path.
+3. Collect browser evidence: DOM snapshot, console logs, screenshot, iframe attributes/content when relevant, and key network/API signals.
+4. If evidence is still incomplete, add minimal branch-level browser instrumentation.
+5. Refresh or rerun the reproduction path.
+6. Read the console/debug buffer and update the evidence table.
+7. Fix the code.
+8. Re-verify in the same browser session when possible.
+9. Remove temporary instrumentation.
+10. Run relevant type checks, tests, or lint checks.
+
+Do not ask the user to copy DevTools logs when the agent can directly operate the relevant browser session and collect equivalent evidence. Ask for user help only when browser automation is unavailable, unsafe, blocked by CAPTCHA or permission prompts, or depends on private state the agent cannot access.
+
+## Browser Evidence Checklist
+
+Use more than one browser signal when the issue is non-trivial:
+
+- **Browser tab/session**: URL, title, logged-in state, account/workspace relevance.
+- **DOM snapshot**: key containers, rendered text, empty states, disabled controls, mounted/unmounted nodes.
+- **Iframe evidence**: `src`, `srcdoc` length or content summary, sandbox attributes, visible content, relevant tokens/text.
+- **Console/debug logs**: errors, warnings, lifecycle events, temporary debug events.
+- **Screenshot**: visual state, iframe rendering, layout state, loading state.
+- **Network/API**: request started, status, resolved/rejected result, response summary, cancellation/abort.
+- **Local code path**: static inference only; use it to choose evidence points, not as standalone proof.
+
+Do not collapse different browser facts into one conclusion. For example, "iframe exists", "iframe has expected `srcdoc`", and "iframe visually rendered expected content" are related but distinct evidence.
+
+## Iframe And Sandbox Evidence
+
+If browser automation cannot enter a cross-origin, out-of-process, or sandboxed iframe, do not remove sandboxing just to debug it.
+
+Prefer behavior-preserving evidence:
+
+- Outer iframe attributes: `src`, `srcdoc`, `sandbox`, size, visibility.
+- `srcdoc` or URL content summary when accessible from the outer document.
+- Screenshot evidence for visible rendering state.
+- Console logs and network/API evidence around iframe construction.
+- Parent component state and render lifecycle events.
+
+Evidence from `srcdoc` plus a screenshot can be enough to prove rendered content for a user-visible bug. It does not necessarily prove that the agent can query or manipulate the iframe's internal DOM.
+
+## Browser Instrumentation Events
+
+For browser async or rendering issues, prefer branch-level lifecycle events over broad object dumps.
+
+Useful event names include:
+
+- `fetch-start`, `fetch-success`, `fetch-error`, `fetch-abort`, `fetch-cleanup`
+- `effect-start`, `effect-cleanup`
+- `render-start`, `render-empty`, `render-success`
+- `iframe-srcdoc-built`, `iframe-rendered`
+- `direct-content-group`, `fallback-content-group`
+
+Record enough context to distinguish branches: input keys, route, ids, status, result length, abort reason, render mode, and whether the component was still mounted. Keep payloads summarized and copy-friendly.
+
 For browser-side issues, if you cannot directly operate the user's authenticated browser state, ask the user to reproduce once after instrumentation. Give exact steps and a single copy command for the debug buffer. Keep missing browser evidence explicit; do not fill it with guesses.
 
 ## Privacy And Payload Safety
@@ -253,6 +321,18 @@ If you added instrumentation, include:
 - Whether the agent can self-run the reproduction and read the log, or whether the user must reproduce in the browser.
 - The cleanup action taken after the fix, or the reason a debug-gated log remains.
 
+For completed browser fixes, include a self-closure verification summary:
+
+```text
+自闭环验证:
+- 浏览器会话:
+- DOM/iframe 证据:
+- console/network 证据:
+- 截图证据:
+- 本地命令:
+- 临时 instrumentation 清理:
+```
+
 ## Anti-Patterns
 
 Avoid these:
@@ -264,7 +344,9 @@ Avoid these:
 - Logging raw secrets or large user payloads.
 - Leaving temporary instrumentation in production paths without a debug gate or cleanup plan.
 - Asking the user to paste Node.js, CLI, or server logs that the agent can read locally after running the provided reproduction command.
+- Asking the user to copy browser logs when the agent can operate the relevant authenticated browser session and collect the same evidence directly.
 - Finishing after the user says the issue is fixed while leaving temporary instrumentation in place without removing it or explicitly gating it.
 - Inferring a write API from a read call site without checking sibling write handlers, mutation handlers, serializers, or save paths in the same module.
 - Treating a mocked unit test as proof of business correctness. A mock confirming `obj.method()` was called proves the interaction happened, not that the method writes to the location the rest of the system reads from.
 - Accepting a test that only verifies the local code path when the real contract is whether persisted or mutated state is observable from the actual downstream read path.
+- Treating repeated browser logs as proof of slow network or backend failure. Repeated `start` events can also come from unstable React effect dependencies, inline objects/functions, component remounts, or cleanup/abort loops. Verify the `start`/`success`/`error`/`cleanup` lifecycle before choosing a fix.
