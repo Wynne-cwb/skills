@@ -217,7 +217,7 @@ For browser-side issues, close the evidence loop yourself when a controllable br
 
 Preferred browser evidence order:
 
-1. Controllable authenticated browser session. Example: in Codex, try the Codex Chrome Extension path first when the issue depends on the user's logged-in state, real account data, workspace data, embedded browser state, or production-like permissions.
+1. Controllable authenticated browser session. Examples: in Codex, try the Codex Chrome Extension path first; in Claude Code, try the Claude Chrome Extension path first. Prefer these paths when the issue depends on the user's logged-in state, real account data, workspace data, embedded browser state, or production-like permissions.
 2. Controllable non-authenticated browser session, such as an in-app browser or local Playwright browser, when authentication is irrelevant or easy to reproduce.
 3. User-assisted reproduction with a copy-friendly debug buffer.
 4. Static code inference only as supporting evidence.
