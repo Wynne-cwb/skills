@@ -17,6 +17,9 @@ Use this skill when the user asks why something did not behave as expected, why 
 6. Do not use strong wording such as "confirmed", "locked", "definitive", or "closed evidence chain" unless the key runtime evidence has been checked.
 7. Validate write paths with write evidence. A read path that looks consistent with your hypothesis does not prove where data should be written. Reads may succeed through getters, fallbacks, proxies, prototype chains, lazy migration shims, or framework behavior that does not apply to writes. Before committing a write-path fix, find a working write call site, the deserialization/initialization path that proves where data lives at rest, or the persistence/save path that proves what the system later reads. If you only have read-path inference, label it as a current hypothesis.
 8. Treat temporary instrumentation as a lifecycle, not a deliverable. Add it to collect evidence, use it to confirm or reject the hypothesis, then remove it after the issue is fixed or the user confirms the issue is fixed unless there is an explicit decision to keep it behind a safe debug gate.
+9. Treat agent summaries as interpreted evidence, not raw evidence. When evidence passes through another agent, inspect at least one raw artifact before using the summary for root-cause attribution.
+10. Reproduction is not attribution. A successful repro proves that input X produces output Y; it does not prove which layer caused Y.
+11. Before a systemic root-cause claim, run a control or falsification check. If a quick counterexample would disprove the claim, look for it before committing to the narrative.
 
 ## Evidence Table
 
@@ -28,6 +31,7 @@ User repro steps | yes/no | runtime artifact | ... | weak/medium/strong
 Browser console/network/DOM | yes/no | runtime | ... | weak/medium/strong
 Node.js/server log | yes/no | runtime | ... | weak/medium/strong
 CLI/test/CI output | yes/no | runtime | ... | weak/medium/strong
+Agent handoff/summary | yes/no | interpreted evidence | raw artifact checked? | weak/medium/strong
 Relevant code path | yes/no | static inference | ... | weak/medium/strong
 ```
 
@@ -48,6 +52,28 @@ Before changing product logic, check whether the evidence supports the direction
 - If the issue cannot be reproduced, add temporary logs that the agent or user can retrieve after one reproduction.
 - If the fix changes a write, mutation, or persistence path, do not ship based only on a matching read path. Require either a working write-path analog in the same codebase, or a runtime/integration check proving the written data is observable through the system's actual read, save, or downstream consumption path.
 - If you added temporary instrumentation and the issue is later fixed or verified, remove the instrumentation before finishing unless the user explicitly wants to keep it. If kept, gate it, document why, and ensure it is safe for normal usage.
+- If evidence comes from a sub-agent, previous session, or handoff document, re-anchor it to raw input/output before relying on labels such as "real id", "valid input", "working", or "reproduced".
+- If the claim is systemic, such as "the whole endpoint family is broken" or "the module is unusable", run a control case and a blast-radius sanity check before shipping a fix.
+- Do not count repeated runs of the same command or same input as independent attribution evidence. They confirm reproducibility, not cause.
+
+## Root-Cause Attribution
+
+Use this section before writing a root-cause claim or handoff.
+
+**Reproduction vs cause**: A reproduction proves that a specific input, environment, and version produce a specific output. It does not locate the fault. Identify which layer is being blamed: caller input, adapter, transport, resolver/controller, service logic, persistence, framework behavior, or output contract.
+
+**Control case**: Before a broad claim, run a contrast case that should behave differently if your hypothesis is true. Examples:
+
+- "Endpoint is broken" -> find a known-good call to the same endpoint.
+- "Field is always null" -> find or construct a record where the field should be non-null.
+- "Function crashes on all inputs" -> try a minimal valid input and a known invalid input.
+- "Backend is broken" -> verify whether another client using the same backend path succeeds.
+
+**Falsification check**: When the narrative feels complete, list 2-3 indirect effects that should also be visible if the root cause is true, then verify them. If those effects are absent, downgrade the conclusion and look for a hidden variable.
+
+**Product reality prior**: Systemic claims must match observed product behavior. If the claim implies that major user flows should be broken but users or other clients are working normally, treat that mismatch as evidence that the attribution is probably too broad.
+
+**Agent handoff re-anchor**: When another agent reports evidence, inspect raw command output, request/response bodies, logs, or persisted artifacts yourself before using the summary. Prefer handoff artifacts in project-local, durable paths when they must survive across agents or sessions; `/tmp` is acceptable for same-agent local loops but weak for handoff.
 
 ## Temporary Instrumentation
 
@@ -321,6 +347,12 @@ If you added instrumentation, include:
 - Whether the agent can self-run the reproduction and read the log, or whether the user must reproduce in the browser.
 - The cleanup action taken after the fix, or the reason a debug-gated log remains.
 
+If you make a root-cause claim, include:
+
+- The raw evidence that anchors the claim, especially when a sub-agent or prior session provided the summary.
+- The control or contrast case used to separate reproduction from attribution.
+- The blast-radius or falsification check used for broad/systemic claims.
+
 For completed browser fixes, include a self-closure verification summary:
 
 ```text
@@ -346,6 +378,11 @@ Avoid these:
 - Asking the user to paste Node.js, CLI, or server logs that the agent can read locally after running the provided reproduction command.
 - Asking the user to copy browser logs when the agent can operate the relevant authenticated browser session and collect the same evidence directly.
 - Finishing after the user says the issue is fixed while leaving temporary instrumentation in place without removing it or explicitly gating it.
+- Accepting sub-agent labels such as "real id", "valid input", "working", or "reproduced" without inspecting raw command output, request payload, response body, or log artifacts.
+- Treating a successful reproduction as root-cause attribution. A repro proves input-to-output behavior; it does not prove which layer is at fault.
+- Treating repeated runs of the same input as independent confirmation of cause.
+- Completing a coherent narrative without trying a control case or quick counterexample.
+- Making broad claims such as "the whole module is broken" without checking whether the implied product blast radius is actually visible.
 - Inferring a write API from a read call site without checking sibling write handlers, mutation handlers, serializers, or save paths in the same module.
 - Treating a mocked unit test as proof of business correctness. A mock confirming `obj.method()` was called proves the interaction happened, not that the method writes to the location the rest of the system reads from.
 - Accepting a test that only verifies the local code path when the real contract is whether persisted or mutated state is observable from the actual downstream read path.
