@@ -1,0 +1,4 @@
+interface:
+  display_name: "SonarQube PR Remediation"
+  short_description: "Fetch and fix SonarQube PR failures"
+  default_prompt: "Use $sonarqube-pr-remediation to inspect this PR's SonarQube failures and guide a narrow fix."
