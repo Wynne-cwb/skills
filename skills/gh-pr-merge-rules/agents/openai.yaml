@@ -1,4 +1,4 @@
 interface:
   display_name: "GH PR Merge Rules"
-  short_description: "Guarded PR flow for target branches"
+  short_description: "Guarded PR flow and title rules"
   default_prompt: "Use $gh-pr-merge-rules to prepare safe GitHub PRs for my feature branch."

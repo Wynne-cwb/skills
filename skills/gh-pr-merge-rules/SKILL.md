@@ -1,6 +1,6 @@
 ---
 name: gh-pr-merge-rules
-description: Safe GitHub PR preparation workflow for feature branches that must merge into target environment branches across one or more repositories. Use when the user asks Codex to create or prepare GitHub PRs from a shared feature branch such as feat/feature-name into a target branch such as testing, release-incy, release-pear, or another environment branch, especially in multi-repo work involving module federation apps, BFFs, forks, and AfterShip upstream repositories.
+description: Safe GitHub PR preparation workflow for feature branches that must merge into target environment branches across one or more repositories, including PR title formatting. Use when the user asks Codex to create or prepare GitHub PRs from a shared feature branch such as feat/feature-name into a target branch such as testing, release-incy, release-pear, or another environment branch, especially in multi-repo work involving module federation apps, BFFs, forks, and AfterShip upstream repositories.
 ---
 
 # GH PR Merge Rules
@@ -17,6 +17,8 @@ Confirm these values before changing branches or creating PRs:
 - `target_branch`: the environment branch requested by the user, such as `testing`, `release-incy`, or `release-pear`.
 - `aftership_remote`: the remote whose Git URL points to the AfterShip upstream repository.
 - `fork_remote`: the writable fork remote.
+- `jira_task`: the JIRA task key for the PR title, such as `ASE-3318`, unless the user explicitly says to omit it.
+- `pr_description`: a concise description of the PR's main change, no more than 60 characters.
 
 If `target_branch` is missing, ask the user to choose it. Do not default to `testing`.
 
@@ -32,6 +34,7 @@ Identify remotes with `git remote -v`; do not assume the remote names. Treat a G
 - If the worktree has uncommitted changes, ask the user how to handle them. Do not stash, commit, discard, or mix them into a PR without confirmation.
 - Base every conflict check on the latest `aftership_remote/target_branch`.
 - Never force-push or delete a branch unless the user explicitly approves the exact branch and remote.
+- Before creating a PR, prepare a title that follows the PR title rules. If the JIRA task key is missing, ask the user for it; continue without one only when the user explicitly says to omit it.
 
 ## Preflight
 
@@ -65,8 +68,9 @@ Use this path when the conflict check succeeds:
 2. Ensure `feature_branch` has no uncommitted changes.
 3. Push `feature_branch` to `fork_remote`.
 4. If the push is rejected due to non-fast-forward history, stop and ask the user how to proceed. Do not force-push.
-5. Create a PR with base `target_branch` on `aftership_remote` and head `feature_branch` on the fork.
-6. Include the conflict-check result and verification result in the PR body.
+5. Prepare the PR title with the PR title rules.
+6. Create a PR with base `target_branch` on `aftership_remote` and head `feature_branch` on the fork.
+7. Include the conflict-check result and verification result in the PR body.
 
 ## Conflict PR Flow
 
@@ -84,8 +88,27 @@ Use this path when merging `feature_branch` into the latest upstream target has 
 10. Run the available verification for that repository.
 11. Push local `target_branch` to `fork_remote`.
 12. If the push is rejected due to non-fast-forward history, stop and ask whether to delete or recreate the fork's `target_branch`. Do not force-push.
-13. Create a PR with base `target_branch` on `aftership_remote` and head `target_branch` on the fork.
-14. Mention in the PR body that this PR uses the fork target branch because direct feature-to-target merge had conflicts.
+13. Prepare the PR title with the PR title rules.
+14. Create a PR with base `target_branch` on `aftership_remote` and head `target_branch` on the fork.
+15. Mention in the PR body that this PR uses the fork target branch because direct feature-to-target merge had conflicts.
+
+## PR Title Rules
+
+Use this format:
+
+`[CI] (JIRA-1234) :gitmoji: PR description`
+
+Build the title from these parts:
+
+- CI marker: add `[CI]` at the beginning when `target_branch` is `testing`, starts with `testing/`, starts with `testing-`, starts with `release/`, or starts with `release-`. Omit `[CI]` for other target branches unless the user requests it.
+- JIRA task: add `(JIRA_TASK)` after the CI marker when a task key is provided, for example `(ASE-3318)`. If it is missing, ask the user for it. The user may explicitly approve creating the PR without a JIRA task key.
+- Gitmoji: use the Gitmoji-style emoji code that best matches the main change, such as `:sparkles:` for a feature, `:bug:` for a fix, `:recycle:` for refactoring, or `:memo:` for docs.
+- PR description: describe the main change plainly and keep this description at 60 characters or less.
+
+Examples:
+
+- `[CI] (ASE-3318) :sparkles: Add sms prefix in render settings`
+- `(ASE-3318) :bug: Fix webhook retry payload mapping`
 
 ## Verification
 
