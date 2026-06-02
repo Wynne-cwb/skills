@@ -1,6 +1,6 @@
 ---
 name: gh-pr-merge-rules
-description: Safe GitHub PR preparation workflow for feature branches that must merge into target environment branches across one or more repositories, including PR title formatting. Use when the user asks Codex to create or prepare GitHub PRs from a shared feature branch such as feat/feature-name into a target branch such as testing, release-incy, release-pear, or another environment branch, especially in multi-repo work involving module federation apps, BFFs, forks, and AfterShip upstream repositories.
+description: Safe GitHub pull request workflow for feature branches, target environment branches, forks, and AfterShip upstream repositories. Use whenever the user asks Codex to 提 PR, 创建 PR, 开 PR, 发 PR, submit a PR, open a PR, create a PR, raise a PR, publish a PR, ship a branch, or prepare a GitHub pull request from a feature branch such as feat/feature-name into a target branch such as testing, testing/*, release/*, release-incy, or release-pear. Handles multi-repo PR work, conflict checks, fork-vs-upstream push rules, target-branch conflict resolution, PR title formatting with CI/JIRA/Gitmoji, and PR body verification notes.
 ---
 
 # GH PR Merge Rules
