@@ -1,25 +1,27 @@
 # Personal Skills Repo
 
-This repository is the source of truth for custom agent skills you use regularly.
+This repository is the source of truth for custom skills you use regularly.
 
 ## Install
 
-Install the `evidence-first-debugging` skill globally with `add-skill`:
+Install skills only from the pushed GitHub repository with `npx skills add`. Do not symlink or auto-sync newly created local skills into a coding agent runtime.
+
+After committing and pushing a skill to GitHub, install it with:
 
 ```bash
-npx skills add Wynne-cwb/skills --skill evidence-first-debugging -g -a claude-code
+npx skills add Wynne-cwb/skills --skill <skill-name> -g -a claude-code
 ```
 
-Install the `brainstorming-prd` skill globally into Claude Code and Codex:
+Example:
 
 ```bash
-npx skills add Wynne-cwb/skills --skill brainstorming-prd -g --agent claude-code codex -y --full-depth
+npx skills add Wynne-cwb/skills --skill gsd-team-lead -g -a claude-code
 ```
 
-The same repository can also be installed into other agents:
+Some skills may require full-depth installation:
 
 ```bash
-npx skills add Wynne-cwb/skills --skill evidence-first-debugging -g -a codex -a opencode
+npx skills add Wynne-cwb/skills --skill brainstorming-prd -g -a claude-code -y --full-depth
 ```
 
 ## Structure
@@ -27,7 +29,6 @@ npx skills add Wynne-cwb/skills --skill evidence-first-debugging -g -a codex -a 
 - `skills/`: each subdirectory is one skill
 - `templates/skill/`: starter layout for a new skill
 - `scripts/new-skill.sh`: scaffold a new skill directory
-- `scripts/sync-to-codex.sh`: symlink one or more local skills into `~/.codex/skills`
 
 ## Suggested Workflow
 
@@ -45,13 +46,21 @@ npx skills add Wynne-cwb/skills --skill evidence-first-debugging -g -a codex -a 
    - `references/`
    - `assets/`
 
-4. Symlink the finished skill into Codex:
+4. Validate the skill:
 
    ```bash
-   make link NAME=my-skill
+   python3 /path/to/skill-creator/scripts/quick_validate.py skills/my-skill
    ```
 
-5. List local skills:
+5. Commit and push the repository to GitHub.
+
+6. Install the pushed skill with `npx skills add`:
+
+   ```bash
+   npx skills add Wynne-cwb/skills --skill my-skill -g -a claude-code
+   ```
+
+7. List local source skills:
 
    ```bash
    make list
@@ -61,7 +70,6 @@ npx skills add Wynne-cwb/skills --skill evidence-first-debugging -g -a codex -a 
 
 - `make help`: show available commands
 - `make new NAME=my-skill`: create a new skill scaffold
-- `make link NAME=my-skill`: symlink one skill into `~/.codex/skills`
 - `make list`: list local skills in this repo
 
 ## Naming
@@ -72,5 +80,6 @@ npx skills add Wynne-cwb/skills --skill evidence-first-debugging -g -a codex -a 
 
 ## Notes
 
-- Codex runtime skills live under `~/.codex/skills`.
+- Do not auto-sync or symlink new skills into coding agent runtime directories.
 - This repo is for authoring, versioning, and organizing your own skills.
+- Installation happens from GitHub through `npx skills add` after the code has been pushed.

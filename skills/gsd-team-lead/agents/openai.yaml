@@ -1,0 +1,4 @@
+interface:
+  display_name: "GSD Team Lead"
+  short_description: "Claude Code GSD milestone lead"
+  default_prompt: "Use $gsd-team-lead in Claude Code to lead my current GSD milestone: finish all discuss-phase decisions first, then use TeamCreate to create fresh TeamMates for one bounded GSD step at a time and drive the milestone to UAT."
