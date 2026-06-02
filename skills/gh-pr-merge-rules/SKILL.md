@@ -1,28 +1,38 @@
 ---
 name: gh-pr-merge-rules
-description: Safe GitHub pull request workflow for feature branches, target environment branches, forks, and AfterShip upstream repositories. Use whenever the user asks Codex to 提 PR, 创建 PR, 开 PR, 发 PR, submit a PR, open a PR, create a PR, raise a PR, publish a PR, ship a branch, or prepare a GitHub pull request from a feature branch such as feat/feature-name into a target branch such as testing, testing/*, release/*, release-incy, or release-pear. Handles multi-repo PR work, conflict checks, fork-vs-upstream push rules, target-branch conflict resolution, PR title formatting with CI/JIRA/Gitmoji, and PR body verification notes.
+description: Safe GitHub pull request workflow for feature branches, target environment branches, forks, and AfterShip upstream repositories. Use whenever the user asks Codex to 提 PR, 创建 PR, 开 PR, 发 PR, submit a PR, open a PR, create a PR, raise a PR, publish a PR, ship a branch, or prepare a GitHub pull request from a feature branch such as feat/feature-name into a target branch such as testing, testing/*, release/*, release-incy, or release-pear. Handles multi-repo PR work, infers target_branch from the current branch upstream tracking branch when omitted, conflict checks, fork-vs-upstream push rules, target-branch conflict resolution, PR title formatting with CI/JIRA/Gitmoji, and PR body verification notes.
 ---
 
 # GH PR Merge Rules
 
 ## Overview
 
-Use this workflow to prepare GitHub PRs without polluting the feature branch or pushing directly to AfterShip upstream branches. Treat `feat/feature-name` as the complete requirement branch, and treat the user-provided target branch as the integration branch for the requested environment.
+Use this workflow to prepare GitHub PRs without polluting the feature branch or pushing directly to AfterShip upstream branches. Treat `feat/feature-name` as the complete requirement branch, and treat the requested or inferred target branch as the integration branch for the requested environment.
 
 ## Inputs
 
 Confirm these values before changing branches or creating PRs:
 
 - `feature_branch`: the requirement branch, usually `feat/feature-name`.
-- `target_branch`: the environment branch requested by the user, such as `testing`, `release-incy`, or `release-pear`.
+- `target_branch`: the environment branch requested by the user or inferred from the current branch's upstream tracking branch, such as `testing`, `release-incy`, or `release-pear`.
 - `aftership_remote`: the remote whose Git URL points to the AfterShip upstream repository.
 - `fork_remote`: the writable fork remote.
 - `jira_task`: the JIRA task key for the PR title, such as `ASE-3318`, unless the user explicitly says to omit it.
 - `pr_description`: a concise description of the PR's main change, no more than 60 characters.
 
-If `target_branch` is missing, ask the user to choose it. Do not default to `testing`.
-
 Identify remotes with `git remote -v`; do not assume the remote names. Treat a GitHub URL owned by `AfterShip` as `aftership_remote`. Treat a non-AfterShip remote that the user can push to as `fork_remote`. If the remotes are ambiguous, ask before pushing or creating the PR.
+
+## Target Branch Resolution
+
+Resolve `target_branch` before conflict checks or PR creation:
+
+1. Use the user-provided target branch when the user specifies one.
+2. If the user does not specify a target branch, inspect the current branch's upstream tracking branch with `git rev-parse --abbrev-ref --symbolic-full-name @{upstream}`.
+3. Infer `target_branch` from the branch name portion after the remote name. For example, `origin/release-incy` means `target_branch` is `release-incy`.
+4. Use `aftership_remote/target_branch` as the PR base, even when the tracking upstream remote is the fork remote.
+5. If the current branch has no upstream tracking branch, or `aftership_remote/target_branch` does not exist, ask the user to choose the target branch.
+
+Do not default to `testing` merely because no target branch was specified.
 
 ## Hard Rules
 
@@ -43,11 +53,12 @@ Run these checks in each repository independently:
 1. Check `git status --short`.
 2. Stop and ask the user what to do if there are uncommitted changes.
 3. Run `git remote -v` and classify `aftership_remote` and `fork_remote`.
-4. Fetch the latest refs from both remotes.
-5. Verify `feature_branch` exists locally or on `fork_remote`.
-6. Verify `aftership_remote/target_branch` exists. If not, ask whether the target branch name is correct.
-7. Ensure all requirement changes are committed on `feature_branch`.
-8. Push `feature_branch` to `fork_remote` before creating any PR or doing conflict resolution.
+4. Resolve `target_branch` with the target branch resolution rules.
+5. Fetch the latest refs from both remotes.
+6. Verify `feature_branch` exists locally or on `fork_remote`.
+7. Verify `aftership_remote/target_branch` exists. If not, ask whether the target branch name is correct.
+8. Ensure all requirement changes are committed on `feature_branch`.
+9. Push `feature_branch` to `fork_remote` before creating any PR or doing conflict resolution.
 
 ## Conflict Check
 
