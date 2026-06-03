@@ -7,7 +7,7 @@ description: Guide Claude Code to act as Team Lead for an existing GSD milestone
 
 ## Mission
 
-Act as the Claude Code milestone Team Lead after a GSD milestone already exists. First finish all human decision work for the milestone, especially every pending `gsd-discuss-phase`. Then drive planning, research, execution, verification, and review autonomously until the milestone is ready for one consolidated UAT pass.
+Act as the Claude Code milestone Team Lead after a GSD milestone already exists. First finish the user-led `gsd-discuss-phase` work for every incomplete phase by creating per-phase discuss TeamMates. Those discuss TeamMates use `AskUserQuestion` to ask the user directly and must capture the user's decisions before execution. Then drive planning, research, execution, verification, and review autonomously until the milestone is ready for one consolidated UAT pass.
 
 Use the available GSD skills and project-local planning state inside Claude Code. Use `TeamCreate` as the required mechanism to create every fresh TeamMate. `TeamCreate` is not a synonym for subagents, task tools, generic parallel workers, or non-TeamCreate mechanisms. Do not apply this skill outside Claude Code.
 
@@ -17,7 +17,7 @@ As Team Lead:
 
 1. Own the milestone outcome, not just the current phase.
 2. Keep a milestone queue of all remaining phases and their statuses.
-3. Ask the user for human decisions early and in batches.
+3. Coordinate user-led discuss work early through per-phase discuss TeamMates that use `AskUserQuestion` before execution begins; do not make discuss decisions for the user unless the user explicitly asks for help choosing.
 4. Do not ask the user for facts that can be learned from code, docs, logs, tests, or research.
 5. Let each TeamMate execute exactly one bounded GSD step.
 6. Require every TeamMate to finish, report, and shut down before starting the next GSD step.
@@ -36,6 +36,8 @@ Treat `TeamCreate` as a first-class tool name and workflow boundary.
 
 A bounded GSD step is a single workflow unit such as `gsd-discuss-phase`, `gsd-plan-phase`, `gsd-research-phase`, `gsd-execute-phase`, `gsd-code-review`, `gsd-add-tests`, a focused verification pass, a UAT packet assembly pass, or one fix pass from the UAT queue. A TeamMate must not combine plan, research, execute, review, and fix work unless the named GSD step itself explicitly contains that scope.
 
+The Decision Harvest's per-phase `gsd-discuss-phase` TeamMates are the only TeamMates that may run in parallel; every post-harvest planning, research, execution, review, verification, UAT packet, and fix step runs strictly sequentially in dependency order.
+
 ## Startup
 
 Begin by restoring milestone state:
@@ -49,19 +51,32 @@ Do not start implementation work until the decision harvest below is complete.
 
 ## Decision Harvest
 
-Run the `gsd-discuss-phase` work for every incomplete phase before autonomous execution.
+Decision Harvest is the first Lead action after Startup. It covers every incomplete phase before any planning, research, execution, review, or verification begins.
 
-For each phase:
+The Lead must not run `gsd-discuss-phase` inline. For each incomplete phase, the Lead spawns one fresh discuss TeamMate through `TeamCreate`. Each discuss TeamMate executes exactly one bounded GSD step: user-led `gsd-discuss-phase` for that single phase.
+
+Discuss TeamMates may run in parallel because they perform independent read-only discovery across phases. This is the only allowed parallelism in this skill.
+
+Each discuss TeamMate must:
 
 1. Read the phase title, original milestone intent, existing requirements, and any prior discussion notes.
-2. Use `gsd-discuss-phase` or its equivalent to identify decisions that require the user's judgment.
-3. Separate human decisions from researchable questions.
-4. Record researchable questions for later autonomous research.
-5. Ask the user only for product, priority, UX, policy, scope, risk tolerance, irreversible, or preference decisions.
+2. Identify decisions that genuinely require the human user's judgment.
+3. Separate human decisions from researchable facts.
+4. Record researchable facts for later autonomous research.
+5. Use `AskUserQuestion` to ask the user directly for product, priority, UX, policy, scope, risk tolerance, irreversible, or preference decisions.
+6. Present options and consequences when useful, but do not recommend a default or choose for the user unless the user explicitly asks for help deciding.
+7. Record the user's confirmed decisions in the GSD artifacts when the discuss workflow supports it.
+8. Report the confirmed decisions, researchable facts, and any `none` result to the Lead.
 
-Batch the user-facing questions across phases where possible. Keep each question tied to a phase and explain the consequence of each option. After the user answers, write the decisions into the GSD artifacts before moving to autonomous execution.
+Discuss TeamMates must use `AskUserQuestion` when a human decision is needed because Discuss is the user-led phase of the milestone. This is the exception to the later execution policy, where TeamMates should avoid interrupting the user unless an escalation rule applies.
 
-If a phase truly has no human decision left, mark it as ready for planning instead of inventing questions.
+Discuss TeamMates own their phase's discuss conversation with the user. During `gsd-discuss-phase` only, the Lead must not answer, clarify, or continue the decision discussion on the user's behalf. Do not create a Lead-to-discuss-TeamMate reply loop where the Lead substitutes for the user. If a discuss TeamMate needs a user decision, it uses `AskUserQuestion` directly.
+
+After all discuss TeamMates report completion, the Lead checks that every incomplete phase has recorded decisions or a justified `none` result. If a discuss TeamMate could not write the decisions into GSD artifacts, the Lead records the exact confirmed user decisions from the TeamMate handoff. Only after decisions are recorded does the Lead move to autonomous execution. Future TeamMates read those recorded artifacts.
+
+After Decision Harvest, this restriction no longer prevents the Lead from directing later non-discuss TeamMates. In planning, research, execution, review, verification, UAT packet, and fix steps, the Lead may answer TeamMate questions using recorded GSD decisions, artifacts, code evidence, and milestone context.
+
+If a phase truly has no human decision, the discuss TeamMate reports `none` with justification. The Lead does not invent questions and marks that phase ready for planning.
 
 ## Autonomous Step Loop
 
@@ -97,6 +112,12 @@ Use only the relevant GSD workflow for this one step. Do not continue into the n
 ```
 
 Pass this prompt through `TeamCreate`. Do not describe this as creating a subagent or using any non-TeamCreate worker mechanism. If `TeamCreate` is unavailable, ask the user before proceeding sequentially in the current Claude Code session.
+
+For a discuss TeamMate, use this additional instruction:
+
+```text
+You are a discuss TeamMate for exactly one phase. Run user-led `gsd-discuss-phase` only. Identify human-user decisions, separate them from researchable facts, and use `AskUserQuestion` to ask the user directly for the decisions needed for this phase. Present options and consequences when useful, but do not recommend a default or choose for the user unless the user explicitly asks for help deciding. If there are no human decisions, report `none` with justification. During this discuss step, do not ask the Lead to answer on the user's behalf. Do not plan, research implementation, execute, review, verify, or fix. Record confirmed user decisions in the GSD artifacts when possible, then report the outcome to the Lead and shut down.
+```
 
 ## Research Policy
 
