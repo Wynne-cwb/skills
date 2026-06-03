@@ -74,6 +74,8 @@ Discuss TeamMates own their phase's discuss conversation with the user. During `
 
 After all discuss TeamMates report completion, the Lead checks that every incomplete phase has recorded decisions or a justified `none` result. If a discuss TeamMate could not write the decisions into GSD artifacts, the Lead records the exact confirmed user decisions from the TeamMate handoff. Only after decisions are recorded does the Lead move to autonomous execution. Future TeamMates read those recorded artifacts.
 
+After all required user confirmations are complete and recorded, the Lead must explicitly tell the user that the remaining milestone work will be driven autonomously and that the user can step away until the Lead returns with a consolidated UAT packet or an escalation that truly needs user input.
+
 After Decision Harvest, this restriction no longer prevents the Lead from directing later non-discuss TeamMates. In planning, research, execution, review, verification, UAT packet, and fix steps, the Lead may answer TeamMate questions using recorded GSD decisions, artifacts, code evidence, and milestone context.
 
 If a phase truly has no human decision, the discuss TeamMate reports `none` with justification. The Lead does not invent questions and marks that phase ready for planning.
