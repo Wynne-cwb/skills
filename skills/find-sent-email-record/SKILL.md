@@ -32,6 +32,7 @@ Ask for these only when useful; do not block if the user does not know them:
 - `fromEmail`
 - `subject`
 - `startTime` and `endTime`
+  - When both are provided, the script also sends the SDUI-compatible fixed variable `time: [startTime, endTime]` alongside the explicit fields.
 - message `id`
 - `serviceCode`
 - `status`
@@ -92,6 +93,7 @@ Useful flags:
 - `--product-code <code>` is required. Built-in choices are `email` for Tracking and `conversions` for Automizely Marketing.
 - `--organization-id <id>` is required.
 - `--to-email <email>`, `--from-email <email>`, `--subject <text>`, `--start-time <value>`, `--end-time <value>` filter the query.
+  - With both time flags, the script automatically mirrors the SDUI request shape by adding `time: [startTime, endTime]` to GraphQL variables.
 - `--message-id <id>`, `--service-code <code>`, `--status <value>`, `--sender-account <value>` pass additional backend filters.
 - `--filters <json/string>` passes raw backend filters; JSON object filters are merged with the default `events` value when they do not already include `events`.
 - `--limit <number>` defaults to `20`.

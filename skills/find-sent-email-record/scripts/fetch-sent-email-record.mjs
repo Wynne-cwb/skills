@@ -277,6 +277,13 @@ function buildFilters(rawFilters, events) {
   return rawFilters;
 }
 
+function buildTimeRange(startTime, endTime) {
+  if (!startTime || !endTime) {
+    return undefined;
+  }
+  return [startTime, endTime];
+}
+
 function endpointForEnv(env) {
   return `https://api.automizely.${env === "testing" ? "me" : "org"}/gql-router/graphql`;
 }
@@ -287,6 +294,7 @@ function refererForEnv(env) {
 
 async function fetchRecords(args, token) {
   const filters = buildFilters(args.filters, args.events);
+  const time = buildTimeRange(args.startTime, args.endTime);
   const variables = compactObject({
     productCode: args.productCode,
     organizationId: args.organizationId,
@@ -294,6 +302,7 @@ async function fetchRecords(args, token) {
     toEmail: args.toEmail,
     startTime: args.startTime,
     endTime: args.endTime,
+    time,
     filters,
     fromEmail: args.fromEmail,
     serviceCode: args.serviceCode,
@@ -979,6 +988,7 @@ function writeOutputs(result, args) {
     productCode: args.productCode,
     organizationId: args.organizationId,
     endpoint: endpointForEnv(args.env),
+    time: buildTimeRange(args.startTime, args.endTime),
     events: args.events,
     filters: buildFilters(args.filters, args.events),
     total: result.pagination?.total,
