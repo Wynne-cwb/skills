@@ -110,11 +110,11 @@ const QUERY = `query EmailsMessages($productCode: String, $organizationId: Strin
 
 function usage() {
   return `Usage:
-  node fetch-sent-email-record.mjs --product-code <code> --organization-id <id> [filters]
+  node fetch-sent-email-record.mjs (--message-id <id> | --product-code <code> --organization-id <id>) [filters]
 
 Required:
-  --product-code <code>       Product code. Built-in choices: email (Tracking), conversions (Automizely Marketing).
-  --organization-id <id>      Organization id.
+  --product-code <code>       Product code. Built-in choices: email (Tracking), conversions (Automizely Marketing). Required unless --message-id is provided.
+  --organization-id <id>      Organization id. Required unless --message-id is provided.
 
 Options:
   --env <production|testing>  Defaults to production.
@@ -127,12 +127,12 @@ Options:
   --service-code <code>
   --sender-account <value>
   --status <value>
-  --events <value>            Defaults to delivered.
+  --events <value>            Defaults to delivered for searches without --message-id.
   --type <value>
   --unsubscribe-type <value>
   --try-count <value>
   --cursor <value>
-  --filters <json/string>     Raw backend filters string. JSON objects are merged with the default events filter.
+  --filters <json/string>     Raw backend filters string. JSON objects are merged with the default events filter for searches without --message-id.
   --limit <number>            Defaults to 20.
   --output-dir <path>         Defaults to a temporary directory.
   --json                      Print machine-readable output.
@@ -142,7 +142,8 @@ Options:
 function parseArgs(argv) {
   const args = {
     env: "production",
-    events: "delivered",
+    events: undefined,
+    eventsExplicit: false,
     limit: 20,
     json: false,
   };
@@ -213,6 +214,9 @@ function parseArgs(argv) {
     }
 
     args[key] = value;
+    if (key === "events") {
+      args.eventsExplicit = true;
+    }
   }
 
   args.limit = Number.parseInt(String(args.limit), 10);
@@ -277,6 +281,13 @@ function buildFilters(rawFilters, events) {
   return rawFilters;
 }
 
+function effectiveEventsForArgs(args) {
+  if (args.eventsExplicit) {
+    return args.events;
+  }
+  return args.id ? undefined : "delivered";
+}
+
 function buildTimeRange(startTime, endTime) {
   if (!startTime || !endTime) {
     return undefined;
@@ -293,7 +304,8 @@ function refererForEnv(env) {
 }
 
 async function fetchRecords(args, token) {
-  const filters = buildFilters(args.filters, args.events);
+  const events = effectiveEventsForArgs(args);
+  const filters = buildFilters(args.filters, events);
   const time = buildTimeRange(args.startTime, args.endTime);
   const variables = compactObject({
     productCode: args.productCode,
@@ -989,8 +1001,8 @@ function writeOutputs(result, args) {
     organizationId: args.organizationId,
     endpoint: endpointForEnv(args.env),
     time: buildTimeRange(args.startTime, args.endTime),
-    events: args.events,
-    filters: buildFilters(args.filters, args.events),
+    events: effectiveEventsForArgs(args),
+    filters: buildFilters(args.filters, effectiveEventsForArgs(args)),
     total: result.pagination?.total,
     returned: candidates.length,
     hasNextPage: result.pagination?.hasNextPage,
@@ -1047,8 +1059,15 @@ async function main() {
     return;
   }
 
-  args.productCode = requireString(args.productCode, "--product-code");
-  args.organizationId = requireString(args.organizationId, "--organization-id");
+  if (args.id) {
+    args.id = requireString(args.id, "--message-id");
+    args.productCode = typeof args.productCode === "string" ? args.productCode.trim() : undefined;
+    args.organizationId =
+      typeof args.organizationId === "string" ? args.organizationId.trim() : undefined;
+  } else {
+    args.productCode = requireString(args.productCode, "--product-code");
+    args.organizationId = requireString(args.organizationId, "--organization-id");
+  }
   args.env = requireString(args.env, "--env");
   if (!["production", "testing"].includes(args.env)) {
     throw new Error("--env must be production or testing");

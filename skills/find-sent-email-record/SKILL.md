@@ -9,7 +9,7 @@ Use this skill to locate real sent email records and retrieve the HTML body stor
 
 ## Required Inputs
 
-- `productCode` is required.
+- `productCode` is required unless an exact message `id` is provided.
   - If missing, ask the user to choose one of:
     - Tracking (`productCode`: `email`)
     - Automizely Marketing (`productCode`: `conversions`)
@@ -17,10 +17,11 @@ Use this skill to locate real sent email records and retrieve the HTML body stor
   - When the user says Automizely Marketing, use `conversions`.
   - If the user explicitly provides another product code, use it as-is.
   - Do not default `productCode`.
-- `organizationId` is required. Ask for it if it is not present in the user request or surrounding context.
+- `organizationId` is required unless an exact message `id` is provided. Ask for it if it is not present in the user request or surrounding context.
 - `env` defaults to `production` when omitted.
   - Use `testing` only when the user explicitly asks for testing or the surrounding task context clearly requires it.
-- `events` defaults to `delivered`.
+- `events` defaults to `delivered` for searches without an exact message `id`.
+  - When `message-id` is provided, do not add an `events` filter unless the user explicitly asks for one.
   - Do not ask for this unless the user wants a different event filter.
   - The script sends this through the backend `filters` string, not as a GraphQL field argument.
 
@@ -63,7 +64,7 @@ Do not print, store, or include the token in output files.
 
 ## Query Workflow
 
-1. Confirm required inputs: product area/`productCode` and `organizationId`.
+1. Confirm required inputs: either exact message `id`, or product area/`productCode` plus `organizationId`.
 2. Default `env` to `production` unless the user specified otherwise.
 3. Collect optional clues if the user knows them.
 4. Run `scripts/fetch-sent-email-record.mjs` with the known inputs.
@@ -89,13 +90,15 @@ node scripts/fetch-sent-email-record.mjs \
 Useful flags:
 
 - `--env production|testing` defaults to `production`.
-- `--events <value>` defaults to `delivered` and is merged into `filters` as `{ "events": "<value>" }`.
-- `--product-code <code>` is required. Built-in choices are `email` for Tracking and `conversions` for Automizely Marketing.
-- `--organization-id <id>` is required.
+- `--events <value>` defaults to `delivered` for searches without `--message-id` and is merged into `filters` as `{ "events": "<value>" }`.
+  - With `--message-id`, no events filter is added unless `--events` is explicitly provided.
+- `--product-code <code>` is required unless `--message-id` is provided. Built-in choices are `email` for Tracking and `conversions` for Automizely Marketing.
+- `--organization-id <id>` is required unless `--message-id` is provided.
 - `--to-email <email>`, `--from-email <email>`, `--subject <text>`, `--start-time <value>`, `--end-time <value>` filter the query.
   - With both time flags, the script automatically mirrors the SDUI request shape by adding `time: [startTime, endTime]` to GraphQL variables.
-- `--message-id <id>`, `--service-code <code>`, `--status <value>`, `--sender-account <value>` pass additional backend filters.
-- `--filters <json/string>` passes raw backend filters; JSON object filters are merged with the default `events` value when they do not already include `events`.
+- `--message-id <id>` performs an exact message lookup and can be used without `--product-code` or `--organization-id`.
+- `--service-code <code>`, `--status <value>`, `--sender-account <value>` pass additional backend filters.
+- `--filters <json/string>` passes raw backend filters; JSON object filters are merged with the default `events` value for searches without `--message-id` when they do not already include `events`.
 - `--limit <number>` defaults to `20`.
 - `--output-dir <path>` controls where preview and HTML files are written.
 - `--json` prints a machine-readable summary for agent use.
