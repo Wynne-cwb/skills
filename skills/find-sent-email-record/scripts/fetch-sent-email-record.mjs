@@ -110,7 +110,7 @@ const QUERY = `query EmailsMessages($productCode: String, $organizationId: Strin
 
 function usage() {
   return `Usage:
-  node fetch-sent-email-record.mjs (--message-id <id> | --product-code <code> --organization-id <id>) [filters]
+  node fetch-sent-email-record.mjs (--message-id <id> | --product-code <code> --organization-id <id>)
 
 Required:
   --product-code <code>       Product code. Built-in choices: email (Tracking), conversions (Automizely Marketing). Required unless --message-id is provided.
@@ -127,12 +127,10 @@ Options:
   --service-code <code>
   --sender-account <value>
   --status <value>
-  --events <value>            Defaults to delivered for searches without --message-id.
   --type <value>
   --unsubscribe-type <value>
   --try-count <value>
   --cursor <value>
-  --filters <json/string>     Raw backend filters string. JSON objects are merged with the default events filter for searches without --message-id.
   --limit <number>            Defaults to 20.
   --output-dir <path>         Defaults to a temporary directory.
   --json                      Print machine-readable output.
@@ -142,8 +140,6 @@ Options:
 function parseArgs(argv) {
   const args = {
     env: "production",
-    events: undefined,
-    eventsExplicit: false,
     limit: 20,
     json: false,
   };
@@ -176,10 +172,8 @@ function parseArgs(argv) {
     "--output-dir": "outputDir",
     "--subject": "subject",
     "--status": "status",
-    "--events": "events",
     "--type": "type",
     "--cursor": "cursor",
-    "--filters": "filters",
     "--limit": "limit",
     "--env": "env",
   };
@@ -214,9 +208,6 @@ function parseArgs(argv) {
     }
 
     args[key] = value;
-    if (key === "events") {
-      args.eventsExplicit = true;
-    }
   }
 
   args.limit = Number.parseInt(String(args.limit), 10);
@@ -261,33 +252,6 @@ function compactObject(object) {
   );
 }
 
-function buildFilters(rawFilters, events) {
-  if (!rawFilters) {
-    return events ? JSON.stringify({ events }) : undefined;
-  }
-
-  try {
-    const parsed = JSON.parse(rawFilters);
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-      return JSON.stringify({
-        ...parsed,
-        ...(events && parsed.events === undefined ? { events } : {}),
-      });
-    }
-  } catch {
-    // Keep non-JSON filters untouched; the backend accepts this as an opaque string.
-  }
-
-  return rawFilters;
-}
-
-function effectiveEventsForArgs(args) {
-  if (args.eventsExplicit) {
-    return args.events;
-  }
-  return args.id ? undefined : "delivered";
-}
-
 function buildTimeRange(startTime, endTime) {
   if (!startTime || !endTime) {
     return undefined;
@@ -304,8 +268,6 @@ function refererForEnv(env) {
 }
 
 async function fetchRecords(args, token) {
-  const events = effectiveEventsForArgs(args);
-  const filters = buildFilters(args.filters, events);
   const time = buildTimeRange(args.startTime, args.endTime);
   const variables = compactObject({
     productCode: args.productCode,
@@ -315,7 +277,6 @@ async function fetchRecords(args, token) {
     startTime: args.startTime,
     endTime: args.endTime,
     time,
-    filters,
     fromEmail: args.fromEmail,
     serviceCode: args.serviceCode,
     limit: args.limit,
@@ -780,7 +741,6 @@ function renderPreviewHtml(candidates, context) {
     context.textContent = [
       \`env=\${data.context.env}\`,
       \`productCode=\${data.context.productCode}\`,
-      \`events=\${data.context.events || "delivered"}\`,
       \`organizationId=\${data.context.organizationId}\`,
       \`total=\${data.context.total ?? "unknown"}\`,
     ].join(" · ");
@@ -901,7 +861,7 @@ function renderPreviewHtml(candidates, context) {
     });
 
     if (!data.candidates.length) {
-      list.innerHTML = '<div class="empty">No records found. Try relaxing filters or increasing the limit.</div>';
+      list.innerHTML = '<div class="empty">No records found. Try widening the time range or increasing the limit.</div>';
       source.textContent = "No HTML source available.";
     } else {
       list.innerHTML = data.candidates.map((candidate) => {
@@ -1001,8 +961,6 @@ function writeOutputs(result, args) {
     organizationId: args.organizationId,
     endpoint: endpointForEnv(args.env),
     time: buildTimeRange(args.startTime, args.endTime),
-    events: effectiveEventsForArgs(args),
-    filters: buildFilters(args.filters, effectiveEventsForArgs(args)),
     total: result.pagination?.total,
     returned: candidates.length,
     hasNextPage: result.pagination?.hasNextPage,

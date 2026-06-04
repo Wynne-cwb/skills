@@ -20,10 +20,7 @@ Use this skill to locate real sent email records and retrieve the HTML body stor
 - `organizationId` is required unless an exact message `id` is provided. Ask for it if it is not present in the user request or surrounding context.
 - `env` defaults to `production` when omitted.
   - Use `testing` only when the user explicitly asks for testing or the surrounding task context clearly requires it.
-- `events` defaults to `delivered` for searches without an exact message `id`.
-  - When `message-id` is provided, do not add an `events` filter unless the user explicitly asks for one.
-  - Do not ask for this unless the user wants a different event filter.
-  - The script sends this through the backend `filters` string, not as a GraphQL field argument.
+  - Do not add `filters` or `events` to the request variables.
 
 ## Optional Clues
 
@@ -90,15 +87,12 @@ node scripts/fetch-sent-email-record.mjs \
 Useful flags:
 
 - `--env production|testing` defaults to `production`.
-- `--events <value>` defaults to `delivered` for searches without `--message-id` and is merged into `filters` as `{ "events": "<value>" }`.
-  - With `--message-id`, no events filter is added unless `--events` is explicitly provided.
 - `--product-code <code>` is required unless `--message-id` is provided. Built-in choices are `email` for Tracking and `conversions` for Automizely Marketing.
 - `--organization-id <id>` is required unless `--message-id` is provided.
 - `--to-email <email>`, `--from-email <email>`, `--subject <text>`, `--start-time <value>`, `--end-time <value>` filter the query.
   - With both time flags, the script automatically mirrors the SDUI request shape by adding `time: [startTime, endTime]` to GraphQL variables.
 - `--message-id <id>` performs an exact message lookup and can be used without `--product-code` or `--organization-id`.
 - `--service-code <code>`, `--status <value>`, `--sender-account <value>` pass additional backend filters.
-- `--filters <json/string>` passes raw backend filters; JSON object filters are merged with the default `events` value for searches without `--message-id` when they do not already include `events`.
 - `--limit <number>` defaults to `20`.
 - `--output-dir <path>` controls where preview and HTML files are written.
 - `--json` prints a machine-readable summary for agent use.
@@ -113,5 +107,5 @@ The script writes:
 
 - Call results "sent email records", "message records", or "outbound email records".
 - Avoid saying the selected HTML is the source template unless the user has separately proven that the record came directly from an unchanged template.
-- When there are zero results, suggest adding or relaxing filters: wider time range, no subject filter, no `toEmail`, or a larger `--limit`.
+- When there are zero results, suggest using an exact message `id`, widening the time range, removing subject/recipient/sender clues, or increasing `--limit`.
 - When there are many similar candidates, guide selection by `createdAt`, `subject`, recipient, sender, `status`, `serviceCode`, and rendered preview.
