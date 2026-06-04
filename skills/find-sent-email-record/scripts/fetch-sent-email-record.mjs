@@ -113,7 +113,7 @@ function usage() {
   node fetch-sent-email-record.mjs --product-code <code> --organization-id <id> [filters]
 
 Required:
-  --product-code <code>       Product code. Common values: aftership, email, returns, conversions.
+  --product-code <code>       Product code. Built-in choices: email (Tracking), conversions (Automizely Marketing).
   --organization-id <id>      Organization id.
 
 Options:
@@ -127,11 +127,12 @@ Options:
   --service-code <code>
   --sender-account <value>
   --status <value>
+  --events <value>            Defaults to delivered.
   --type <value>
   --unsubscribe-type <value>
   --try-count <value>
   --cursor <value>
-  --filters <json/string>     Raw backend filters string.
+  --filters <json/string>     Raw backend filters string. JSON objects are merged with the default events filter.
   --limit <number>            Defaults to 20.
   --output-dir <path>         Defaults to a temporary directory.
   --json                      Print machine-readable output.
@@ -141,6 +142,7 @@ Options:
 function parseArgs(argv) {
   const args = {
     env: "production",
+    events: "delivered",
     limit: 20,
     json: false,
   };
@@ -173,6 +175,7 @@ function parseArgs(argv) {
     "--output-dir": "outputDir",
     "--subject": "subject",
     "--status": "status",
+    "--events": "events",
     "--type": "type",
     "--cursor": "cursor",
     "--filters": "filters",
@@ -254,6 +257,26 @@ function compactObject(object) {
   );
 }
 
+function buildFilters(rawFilters, events) {
+  if (!rawFilters) {
+    return events ? JSON.stringify({ events }) : undefined;
+  }
+
+  try {
+    const parsed = JSON.parse(rawFilters);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return JSON.stringify({
+        ...parsed,
+        ...(events && parsed.events === undefined ? { events } : {}),
+      });
+    }
+  } catch {
+    // Keep non-JSON filters untouched; the backend accepts this as an opaque string.
+  }
+
+  return rawFilters;
+}
+
 function endpointForEnv(env) {
   return `https://api.automizely.${env === "testing" ? "me" : "org"}/gql-router/graphql`;
 }
@@ -263,6 +286,7 @@ function refererForEnv(env) {
 }
 
 async function fetchRecords(args, token) {
+  const filters = buildFilters(args.filters, args.events);
   const variables = compactObject({
     productCode: args.productCode,
     organizationId: args.organizationId,
@@ -270,7 +294,7 @@ async function fetchRecords(args, token) {
     toEmail: args.toEmail,
     startTime: args.startTime,
     endTime: args.endTime,
-    filters: args.filters,
+    filters,
     fromEmail: args.fromEmail,
     serviceCode: args.serviceCode,
     limit: args.limit,
@@ -735,6 +759,7 @@ function renderPreviewHtml(candidates, context) {
     context.textContent = [
       \`env=\${data.context.env}\`,
       \`productCode=\${data.context.productCode}\`,
+      \`events=\${data.context.events || "delivered"}\`,
       \`organizationId=\${data.context.organizationId}\`,
       \`total=\${data.context.total ?? "unknown"}\`,
     ].join(" · ");
@@ -954,6 +979,8 @@ function writeOutputs(result, args) {
     productCode: args.productCode,
     organizationId: args.organizationId,
     endpoint: endpointForEnv(args.env),
+    events: args.events,
+    filters: buildFilters(args.filters, args.events),
     total: result.pagination?.total,
     returned: candidates.length,
     hasNextPage: result.pagination?.hasNextPage,

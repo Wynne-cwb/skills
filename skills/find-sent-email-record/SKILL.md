@@ -10,12 +10,19 @@ Use this skill to locate real sent email records and retrieve the HTML body stor
 ## Required Inputs
 
 - `productCode` is required.
-  - If missing, ask the user to choose one of `aftership`, `email`, `returns`, or `conversions`.
+  - If missing, ask the user to choose one of:
+    - Tracking (`productCode`: `email`)
+    - Automizely Marketing (`productCode`: `conversions`)
+  - When the user says Tracking, use `email`.
+  - When the user says Automizely Marketing, use `conversions`.
   - If the user explicitly provides another product code, use it as-is.
   - Do not default `productCode`.
 - `organizationId` is required. Ask for it if it is not present in the user request or surrounding context.
 - `env` defaults to `production` when omitted.
   - Use `testing` only when the user explicitly asks for testing or the surrounding task context clearly requires it.
+- `events` defaults to `delivered`.
+  - Do not ask for this unless the user wants a different event filter.
+  - The script sends this through the backend `filters` string, not as a GraphQL field argument.
 
 ## Optional Clues
 
@@ -55,7 +62,7 @@ Do not print, store, or include the token in output files.
 
 ## Query Workflow
 
-1. Confirm required inputs: `productCode` and `organizationId`.
+1. Confirm required inputs: product area/`productCode` and `organizationId`.
 2. Default `env` to `production` unless the user specified otherwise.
 3. Collect optional clues if the user knows them.
 4. Run `scripts/fetch-sent-email-record.mjs` with the known inputs.
@@ -81,10 +88,12 @@ node scripts/fetch-sent-email-record.mjs \
 Useful flags:
 
 - `--env production|testing` defaults to `production`.
-- `--product-code <code>` is required.
+- `--events <value>` defaults to `delivered` and is merged into `filters` as `{ "events": "<value>" }`.
+- `--product-code <code>` is required. Built-in choices are `email` for Tracking and `conversions` for Automizely Marketing.
 - `--organization-id <id>` is required.
 - `--to-email <email>`, `--from-email <email>`, `--subject <text>`, `--start-time <value>`, `--end-time <value>` filter the query.
 - `--message-id <id>`, `--service-code <code>`, `--status <value>`, `--sender-account <value>` pass additional backend filters.
+- `--filters <json/string>` passes raw backend filters; JSON object filters are merged with the default `events` value when they do not already include `events`.
 - `--limit <number>` defaults to `20`.
 - `--output-dir <path>` controls where preview and HTML files are written.
 - `--json` prints a machine-readable summary for agent use.
