@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const QUERY = `query EmailsMessages($productCode: String, $organizationId: String, $cursor: String, $toEmail: String, $startTime: String, $endTime: String, $filters: String, $fromEmail: String, $serviceCode: String, $limit: Int, $id: String, $senderAccount: String, $status: String, $subject: String, $type: String, $unsubscribeType: String, $tryCount: String) {
+const QUERY = `query EmailsMessages($productCode: String, $organizationId: String, $cursor: String, $toEmail: String, $startTime: String, $endTime: String, $fromEmail: String, $serviceCode: String, $limit: Int, $id: String, $senderAccount: String, $status: String, $subject: String, $type: String, $unsubscribeType: String, $tryCount: String) {
   messagesEmailsMessages(
     productCode: $productCode
     organizationId: $organizationId
@@ -13,7 +13,6 @@ const QUERY = `query EmailsMessages($productCode: String, $organizationId: Strin
     cursor: $cursor
     startTime: $startTime
     endTime: $endTime
-    filters: $filters
     fromEmail: $fromEmail
     serviceCode: $serviceCode
     limit: $limit

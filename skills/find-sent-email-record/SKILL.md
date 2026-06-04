@@ -92,7 +92,7 @@ Useful flags:
 - `--to-email <email>`, `--from-email <email>`, `--subject <text>`, `--start-time <value>`, `--end-time <value>` filter the query.
   - With both time flags, the script automatically mirrors the SDUI request shape by adding `time: [startTime, endTime]` to GraphQL variables.
 - `--message-id <id>` performs an exact message lookup and can be used without `--product-code` or `--organization-id`.
-- `--service-code <code>`, `--status <value>`, `--sender-account <value>` pass additional backend filters.
+- `--service-code <code>`, `--status <value>`, `--sender-account <value>` pass additional query fields.
 - `--limit <number>` defaults to `20`.
 - `--output-dir <path>` controls where preview and HTML files are written.
 - `--json` prints a machine-readable summary for agent use.

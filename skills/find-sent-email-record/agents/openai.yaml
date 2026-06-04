@@ -1,4 +1,4 @@
 interface:
   display_name: "Find Sent Email Record"
   short_description: "Find real sent email records and HTML."
-  default_prompt: "Find a real sent email record. Ask me whether the product area is Tracking (email) or Automizely Marketing (conversions), plus any known filters, then generate a local preview so I can choose the right message and get its HTML source."
+  default_prompt: "Find a real sent email record. Use an exact message id when I provide one; otherwise ask whether the product area is Tracking (email) or Automizely Marketing (conversions), plus the organization id and any known search clues, then generate a local preview so I can choose the right message and get its HTML source."
