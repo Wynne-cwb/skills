@@ -1,9 +1,9 @@
 ---
-name: clime-app-center-cicd-debug
+name: app-center-cicd-debug
 description: Debug AfterShip App Center and Clime CI/CD failures with evidence-first metadata and log analysis. Use when a user provides or asks about CI failed, CD failed, artifact failed, App Center, Clime, Tekton, publish failed, release failed, build log analysis, artifact id, build id, event id, CI name, repository name, PR build failure, deployment failure, or GCP/Tekton/Docker logs.
 ---
 
-# Clime App Center CI/CD Debug
+# App Center CI/CD Debug
 
 ## Overview
 

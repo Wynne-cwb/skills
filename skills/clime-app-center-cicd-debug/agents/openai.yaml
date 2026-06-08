@@ -1,4 +1,0 @@
-interface:
-  display_name: "Clime App Center CI/CD Debug"
-  short_description: "Debug App Center CI/CD failures with Clime evidence"
-  default_prompt: "Use $clime-app-center-cicd-debug to investigate this App Center CI/CD failure with Clime metadata, artifact records, and logs before proposing code changes."
