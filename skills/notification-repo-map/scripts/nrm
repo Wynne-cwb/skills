@@ -1,0 +1,510 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "fileutils"
+require "open3"
+require "yaml"
+
+SKILL_DIR = File.expand_path("..", __dir__)
+DEFAULT_PROJECT_MAP_PATH = File.join(SKILL_DIR, "references", "project-map.yaml")
+DEFAULT_CONFIG_PATH = File.expand_path("~/.config/notification-repo-map/config.yaml")
+
+PROJECT_MAP_PATH = ENV.fetch("NRM_PROJECT_MAP", DEFAULT_PROJECT_MAP_PATH)
+CONFIG_PATH = ENV.fetch("NRM_CONFIG", DEFAULT_CONFIG_PATH)
+
+def usage
+  warn <<~USAGE
+    Usage:
+      nrm resolve <project-id>
+      nrm ensure <project-id>
+      nrm doctor
+
+    Environment overrides:
+      NRM_CONFIG=<path>
+      NRM_PROJECT_MAP=<path>
+  USAGE
+  exit 64
+end
+
+def die(message, code = 1)
+  warn "ERROR: #{message}"
+  exit code
+end
+
+def load_yaml_file(path, required: true)
+  unless File.file?(path)
+    return nil unless required
+
+    die("YAML file not found: #{path}", 2)
+  end
+
+  data = YAML.safe_load(File.read(path), aliases: true)
+  data || {}
+rescue Psych::SyntaxError => e
+  die("Invalid YAML in #{path}: #{e.message}", 2)
+end
+
+def load_config(required: true)
+  cfg = load_yaml_file(CONFIG_PATH, required: required)
+  return nil unless cfg
+
+  cfg["projects"] ||= {}
+  cfg["clone"] ||= {}
+  cfg["fork"] ||= {}
+  cfg
+end
+
+def load_project_map
+  project_map = load_yaml_file(PROJECT_MAP_PATH, required: true)
+  projects = project_map["projects"]
+  die("Project map has no projects list: #{PROJECT_MAP_PATH}", 2) unless projects.is_a?(Array)
+
+  project_map
+end
+
+def run_capture(*cmd, cwd: nil)
+  options = cwd ? { chdir: cwd } : {}
+  stdout, stderr, status = Open3.capture3(*cmd, **options)
+  [status.success?, stdout.strip, stderr.strip, status.exitstatus]
+end
+
+def command_available?(name)
+  ok, = run_capture("sh", "-c", "command -v #{name}")
+  ok
+end
+
+def normalize_git_url(url)
+  s = url.to_s.strip
+  return nil if s.empty?
+
+  s = s.sub(%r{\Assh://git@github.com/}, "")
+  s = s.sub(%r{\Agit@github.com:}, "")
+  s = s.sub(%r{\Ahttps://github.com/}, "")
+  s = s.sub(%r{\Ahttp://github.com/}, "")
+  s = s.sub(%r{\Agit://github.com/}, "")
+  s = s.sub(%r{\.git\z}, "")
+  s = s.sub(%r{/\z}, "")
+  parts = s.split("/")
+  return nil unless parts.length >= 2
+
+  "#{parts[-2].downcase}/#{parts[-1].downcase}"
+end
+
+def remote_url(path, name)
+  ok, stdout, = run_capture("git", "-C", path, "remote", "get-url", name)
+  ok ? stdout : nil
+end
+
+def git_repo?(path)
+  ok, stdout, = run_capture("git", "-C", path, "rev-parse", "--is-inside-work-tree")
+  ok && stdout == "true"
+end
+
+def project_candidates(project)
+  values = [project["id"], project["repo_name"]]
+  values.concat(project["aliases"]) if project["aliases"].is_a?(Array)
+  values.compact.uniq
+end
+
+def find_project(project_map, input)
+  project_map.fetch("projects").find do |project|
+    project_candidates(project).include?(input)
+  end
+end
+
+def upstream_owner(project_map)
+  project_map.dig("defaults", "upstream_owner") || "AfterShip"
+end
+
+def fork_owner(config)
+  config.dig("fork", "owner") || config["github_user"] || ENV["GITHUB_USER"]
+end
+
+def clone_protocol(config, project_map)
+  config.dig("clone", "protocol") || project_map.dig("defaults", "clone_protocol") || "ssh"
+end
+
+def github_remote_url(owner, repo, protocol)
+  case protocol.to_s
+  when "https"
+    "https://github.com/#{owner}/#{repo}.git"
+  when "ssh", ""
+    "git@github.com:#{owner}/#{repo}.git"
+  else
+    die("Unsupported clone protocol #{protocol.inspect}; expected ssh or https", 2)
+  end
+end
+
+def expected_upstream_slug(project)
+  normalize_git_url(project["upstream"])
+end
+
+def expected_fork_slug(config, project)
+  owner = fork_owner(config)
+  return nil unless owner
+
+  "#{owner.downcase}/#{project.fetch("repo_name").downcase}"
+end
+
+def save_config(config)
+  config["projects"] = config.fetch("projects", {}).sort.to_h
+  FileUtils.mkdir_p(File.dirname(CONFIG_PATH))
+  File.write(CONFIG_PATH, config.to_yaml)
+end
+
+def policy_value(config, section, key)
+  value = config.dig(section, key) || "ask"
+  unless %w[ask auto never].include?(value)
+    die("Invalid config #{section}.#{key}=#{value.inspect}; expected ask, auto, or never", 2)
+  end
+  value
+end
+
+def allow_by_policy?(policy, prompt)
+  case policy
+  when "auto"
+    true
+  when "never"
+    false
+  when "ask"
+    die("Confirmation required but stdin is not interactive: #{prompt}", 3) unless $stdin.tty?
+
+    print "#{prompt} [y/N]: "
+    answer = $stdin.gets.to_s.strip.downcase
+    %w[y yes].include?(answer)
+  end
+end
+
+def gh_auth_required!
+  die("GitHub CLI gh is not installed or not on PATH", 4) unless command_available?("gh")
+
+  ok, _stdout, stderr, = run_capture("gh", "auth", "status", "-h", "github.com")
+  return if ok
+
+  die("GitHub CLI is not logged in for github.com. Run: gh auth login -h github.com\n#{stderr}", 4)
+end
+
+def gh_repo_exists?(owner, repo)
+  ok, _stdout, stderr, = run_capture("gh", "repo", "view", "#{owner}/#{repo}", "--json", "name")
+  return true if ok
+
+  return false if stderr.match?(/Could not resolve|not found|Not Found|HTTP 404/i)
+
+  die("Unable to check GitHub repo #{owner}/#{repo}: #{stderr}", 4)
+end
+
+def create_fork!(project_map, config, project)
+  owner = fork_owner(config)
+  die("Config is missing github_user or fork.owner; cannot determine fork owner", 2) unless owner
+
+  repo = project.fetch("repo_name")
+  return if gh_repo_exists?(owner, repo)
+
+  policy = policy_value(config, "fork", "missing_forks")
+  allowed = allow_by_policy?(policy, "Fork #{upstream_owner(project_map)}/#{repo} into #{owner}/#{repo}?")
+  die("Fork #{owner}/#{repo} is missing and fork.missing_forks=#{policy}", 3) unless allowed
+
+  ok, stdout, stderr, = run_capture("gh", "repo", "fork", "#{upstream_owner(project_map)}/#{repo}", "--remote=false", "--clone=false")
+  die("Failed to create fork #{owner}/#{repo}: #{stderr}") unless ok
+
+  puts stdout unless stdout.empty?
+end
+
+def print_branch_hint(project)
+  branches = project["branches"] || {}
+  active = branches["active_major"]
+  production = branches["production"]
+  legacy = branches["legacy_v9"]
+  hints = []
+  hints << "production=#{production}" if production
+  hints << "legacy_v9=#{legacy}" if legacy
+  hints << "active_major=#{active}" if active
+  puts "branch tracks: #{hints.join(", ")}" unless hints.empty?
+end
+
+def remote_shape(path, project, config)
+  origin = remote_url(path, "origin")
+  upstream = remote_url(path, "upstream")
+  local = remote_url(path, "local")
+
+  expected_origin = expected_fork_slug(config, project)
+  expected_upstream = expected_upstream_slug(project)
+  origin_slug = normalize_git_url(origin)
+  upstream_slug = normalize_git_url(upstream)
+  local_slug = normalize_git_url(local)
+
+  issues = []
+  hints = []
+
+  if expected_origin.nil?
+    issues << "missing github_user/fork.owner in config, cannot verify origin fork"
+  elsif origin_slug != expected_origin
+    if origin_slug == expected_upstream
+      issues << "origin points to AfterShip upstream; expected user fork #{expected_origin}"
+    elsif origin_slug.nil?
+      issues << "origin remote is missing"
+    else
+      issues << "origin points to #{origin}; expected fork #{expected_origin}"
+    end
+    hints << "local remote already points to expected fork; consider renaming remotes manually" if local_slug == expected_origin
+  end
+
+  if upstream_slug != expected_upstream
+    if upstream_slug.nil?
+      issues << "upstream remote is missing"
+    else
+      issues << "upstream points to #{upstream}; expected #{project["upstream"]}"
+    end
+  end
+
+  [issues.empty?, issues, hints]
+end
+
+def report_remote_shape!(path, project, config)
+  ok, issues, hints = remote_shape(path, project, config)
+  return true if ok
+
+  warn "Remote shape is not fork-first for #{project.fetch("id")} at #{path}:"
+  issues.each { |issue| warn "  - #{issue}" }
+  hints.each { |hint| warn "  hint: #{hint}" }
+  warn "Expected:"
+  warn "  origin   -> user fork"
+  warn "  upstream -> #{project["upstream"]}"
+  false
+end
+
+def cmd_resolve(argv)
+  project_id = argv.shift || usage
+  usage unless argv.empty?
+
+  config = load_config(required: true)
+  path = config.fetch("projects", {})[project_id]
+  die("Project #{project_id} is not mapped in #{CONFIG_PATH}", 2) unless path
+
+  expanded = File.expand_path(path)
+  die("Mapped path does not exist for #{project_id}: #{expanded}", 2) unless Dir.exist?(expanded)
+
+  puts expanded
+end
+
+def cmd_ensure(argv)
+  input = argv.shift || usage
+  usage unless argv.empty?
+
+  config = load_config(required: true)
+  project_map = load_project_map
+  project = find_project(project_map, input)
+  die("Unknown project id or repo name: #{input}", 2) unless project
+
+  id = project.fetch("id")
+  repo = project.fetch("repo_name")
+  configured_path = config.fetch("projects", {})[id] || config.fetch("projects", {})[input]
+
+  if configured_path
+    path = File.expand_path(configured_path)
+    if Dir.exist?(path)
+      die("Configured path is not a git repo: #{path}", 2) unless git_repo?(path)
+
+      report_remote_shape!(path, project, config) || exit(3)
+      puts path
+      print_branch_hint(project)
+      return
+    end
+
+    warn "Configured path for #{id} does not exist and will be treated as missing: #{path}"
+  end
+
+  clone_root = config["default_clone_root"]
+  die("Config is missing default_clone_root; cannot clone missing project #{id}", 2) if clone_root.to_s.strip.empty?
+
+  target = File.expand_path(File.join(clone_root, repo))
+  if Dir.exist?(target)
+    die("Existing target is not a git repo: #{target}", 2) unless git_repo?(target)
+
+    report_remote_shape!(target, project, config) || exit(3)
+    config["projects"][id] = target
+    save_config(config)
+    puts target
+    print_branch_hint(project)
+    return
+  end
+
+  clone_policy = policy_value(config, "clone", "missing_projects")
+  allowed = allow_by_policy?(clone_policy, "Clone missing project #{id} into #{target}?")
+  die("Project #{id} is missing and clone.missing_projects=#{clone_policy}", 3) unless allowed
+
+  gh_auth_required!
+  create_fork!(project_map, config, project)
+
+  owner = fork_owner(config)
+  protocol = clone_protocol(config, project_map)
+  origin_url = github_remote_url(owner, repo, protocol)
+  upstream_url = project["upstream"]
+
+  FileUtils.mkdir_p(File.dirname(target))
+  ok, stdout, stderr, = run_capture("git", "clone", origin_url, target)
+  die("git clone failed for #{origin_url}: #{stderr}") unless ok
+
+  puts stdout unless stdout.empty?
+
+  unless remote_url(target, "upstream")
+    ok, _stdout, stderr, = run_capture("git", "-C", target, "remote", "add", "upstream", upstream_url)
+    die("Failed to add upstream remote #{upstream_url}: #{stderr}") unless ok
+  end
+
+  ok, _stdout, stderr, = run_capture("git", "-C", target, "fetch", "upstream", "--prune")
+  die("Failed to fetch upstream for #{id}: #{stderr}") unless ok
+
+  config["projects"][id] = target
+  save_config(config)
+
+  report_remote_shape!(target, project, config) || exit(3)
+  puts target
+  print_branch_hint(project)
+end
+
+def doctor_report(status, label, detail = nil)
+  puts "[#{status}] #{label}"
+  puts "     #{detail}" if detail && !detail.empty?
+end
+
+def ssh_ok?
+  ok, stdout, stderr, status = run_capture(
+    "ssh",
+    "-o", "BatchMode=yes",
+    "-o", "ConnectTimeout=10",
+    "-T",
+    "git@github.com"
+  )
+  output = [stdout, stderr].join("\n")
+  return [true, output] if ok || output.match?(/successfully authenticated/i)
+
+  [false, "exit=#{status} #{output.strip}"]
+end
+
+def cmd_doctor(argv)
+  usage unless argv.empty?
+
+  failures = 0
+  warnings = 0
+
+  project_map = nil
+  begin
+    project_map = load_project_map
+    doctor_report("OK", "project map readable", PROJECT_MAP_PATH)
+  rescue SystemExit
+    failures += 1
+    doctor_report("FAIL", "project map readable", PROJECT_MAP_PATH)
+  end
+
+  config = load_config(required: false)
+  if config
+    doctor_report("OK", "config readable", CONFIG_PATH)
+  else
+    failures += 1
+    doctor_report("FAIL", "config readable", "Bootstrap #{CONFIG_PATH} first.")
+  end
+
+  if command_available?("gh")
+    doctor_report("OK", "GitHub CLI installed")
+    ok, _stdout, stderr, = run_capture("gh", "auth", "status", "-h", "github.com")
+    if ok
+      doctor_report("OK", "GitHub CLI auth")
+    else
+      failures += 1
+      doctor_report("FAIL", "GitHub CLI auth", stderr)
+    end
+  else
+    failures += 1
+    doctor_report("FAIL", "GitHub CLI installed", "Install gh and run gh auth login -h github.com.")
+  end
+
+  ssh_success, ssh_detail = ssh_ok?
+  if ssh_success
+    doctor_report("OK", "GitHub SSH auth")
+  else
+    failures += 1
+    doctor_report("FAIL", "GitHub SSH auth", ssh_detail)
+  end
+
+  if config
+    if fork_owner(config).to_s.strip.empty?
+      failures += 1
+      doctor_report("FAIL", "fork owner configured", "Set github_user or fork.owner in #{CONFIG_PATH}.")
+    else
+      doctor_report("OK", "fork owner configured", fork_owner(config))
+    end
+
+    clone_root = config["default_clone_root"].to_s
+    if clone_root.empty?
+      failures += 1
+      doctor_report("FAIL", "default_clone_root configured")
+    elsif Dir.exist?(File.expand_path(clone_root))
+      doctor_report("OK", "default_clone_root exists", File.expand_path(clone_root))
+    else
+      warnings += 1
+      doctor_report("WARN", "default_clone_root missing", File.expand_path(clone_root))
+    end
+  end
+
+  if config && project_map
+    mapped = config.fetch("projects", {})
+    if mapped.empty?
+      warnings += 1
+      doctor_report("WARN", "mapped projects", "No projects are mapped in config.")
+    end
+
+    mapped.each do |id, raw_path|
+      project = find_project(project_map, id)
+      unless project
+        warnings += 1
+        doctor_report("WARN", "project #{id}", "Not present in project map.")
+        next
+      end
+
+      path = File.expand_path(raw_path.to_s)
+      unless Dir.exist?(path)
+        failures += 1
+        doctor_report("FAIL", "project #{id}", "Path does not exist: #{path}")
+        next
+      end
+
+      unless git_repo?(path)
+        failures += 1
+        doctor_report("FAIL", "project #{id}", "Path is not a git repo: #{path}")
+        next
+      end
+
+      ok, issues, hints = remote_shape(path, project, config)
+      if ok
+        doctor_report("OK", "project #{id} remotes", path)
+      else
+        failures += 1
+        detail = (issues + hints.map { |h| "hint: #{h}" }).join("; ")
+        doctor_report("FAIL", "project #{id} remotes", detail)
+      end
+
+      ok_status, status_out, = run_capture("git", "-C", path, "status", "--short")
+      next unless ok_status && !status_out.empty?
+
+      warnings += 1
+      doctor_report("WARN", "project #{id} worktree dirty", path)
+    end
+  end
+
+  puts
+  puts "doctor summary: #{failures} failure(s), #{warnings} warning(s)"
+  exit(failures.zero? ? 0 : 1)
+end
+
+command = ARGV.shift || usage
+case command
+when "resolve"
+  cmd_resolve(ARGV)
+when "ensure"
+  cmd_ensure(ARGV)
+when "doctor"
+  cmd_doctor(ARGV)
+else
+  usage
+end

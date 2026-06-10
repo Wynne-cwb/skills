@@ -1,0 +1,236 @@
+# bff-api.automizely.com_marketing_admin
+
+## Summary
+- project_id: bff-api.automizely.com_marketing_admin
+- repo_name: bff-api.automizely.com_marketing_admin
+- upstream_url: https://github.com/AfterShip/bff-api.automizely.com_marketing_admin
+- local_path: /Users/wb.chen/Documents/AfterShip/Automizely Marketing/bff-api.automizely.com_marketing_admin
+- repo_type: legacy Node.js/TypeScript Koa + Apollo GraphQL BFF for old Automizely/AfterShip Marketing Admin
+- confidence: high; inspected local checkout, git remotes/branches, package manifest, GraphQL schema, runtime config, entrypoints, and datasource service code only. No network search.
+
+## Responsibility
+- Owns:
+  - Old Marketing Admin GraphQL BFF surface mounted at `/marketing/admin/graphql`; a second `/marketing/admin/public/graphql` server exists but currently has an empty public resolver.
+  - Aggregation and BFF mapping for legacy marketing admin domains: coupon campaigns, newsletters/email campaigns, email contents/templates, automations, flows, popup/forms, contacts/segments/CRM, store connections, SMS campaigns/content/compliance, email/SMS/popup analytics, search/chats settings, recommendation admin, notification organization lookup, and contact-retention export.
+  - Unified internal REST datasource wrapper: resolves service prefixes from config/config-center, forwards `Am-*`, app, account, trace, recaptcha, data, and cross-org headers, and normalizes REST calls behind GraphQL resolvers.
+  - GraphQL schema/type generation for this BFF (`graphql/**`, `src/generated/**`).
+- Does not own:
+  - Frontend host or Module Federation UI bundles; no webpack/module-federation config, exposes, or remotes were found in this backend repo.
+  - The underlying product services it calls, including `prod-mt-convtools`, `prod-mt-flow`, `prod-mt-flowsteps`, `data-dms`, `data-conversions`, `pltf-messages`, `prod-ss-sms-core`, `prod-acrm`, `pltf-connectors`, `prod-mt-riskmgmt`, `prod-mt-featuremgmt`, `pltf-email-report`, `pltf-capture`, `prod-search`, and `prod-chats`.
+  - Shared frontend packages such as `sdks.am-static.com_admin-marketing-coupon`, `sdks.am-static.com_admin-email`, `sdks.am-static.com_admin-sms`, or `sdks.am-static.com_admin-marketing-data`; their relationship is consumer-side/inferred from matching GraphQL domains, not a package dependency in this repo.
+- Common change areas:
+  - `graphql/query.graphql`, `graphql/mutation.graphql`, and domain GraphQL type/input files.
+  - `src/datasources/<domain>/{resolver,controller,service}.ts` for BFF field mapping and REST calls.
+  - `config/*.js` for environment service prefixes and host/domain URLs.
+  - `src/utils/RESTDataSourceBasic.ts` for request forwarding behavior.
+  - `src/generated/graphql.ts` and `src/generated/publicGraphql.ts` are generated from schema/codegen, not hand-authored business logic.
+
+## Branch Tracks
+- production: `master` exists locally and as `origin/master` and `upstream/master`; Jenkins declares production environment support.
+- legacy_v9: not found. `master_v9` does not appear in local or upstream branch refs.
+- active_major: protocol default candidates were not found. No `feat/flow-v3-polaris-v13` or `feat/flow-v3` branch appears in local/upstream refs.
+- repo_specific_notes:
+  - Current checkout was `feat/data-retention` during research.
+  - Upstream tracks include `staging`, `testing`, and release branches `release/core`, `release/incy`, `release/kiwi`, `release/nike`, `release/pear`, `release/tidy`.
+  - GitHub PR title check targets `feat/*`, `hotfix/*`, `release/*`, `testing`, `staging`, and `master`; SonarQube targets PRs into `staging`, `master`, and `feat/*`.
+  - Treat this repo as an old BFF with repo-specific branch model, not a Notification/Module-Federation `active_major` repo.
+
+## Module Federation
+- enabled: no evidence found.
+- exposes: none.
+- remotes: none.
+- shared_packages: not applicable for Module Federation. Runtime package dependencies include Node/Apollo/GraphQL libraries plus team packages such as `@aftership/am-filters`, but no MF shared config.
+- branch_alignment: not applicable. This backend aligns by service/release branch (`master`, `staging`, `testing`, `release/*`) rather than frontend MF branch tracks.
+
+## Team Repo Dependencies
+- Direct dependencies:
+  - `@aftership/am-filters` for contact/newsletter/flow filter migration/interpreter usage.
+  - `@aftership/config-center-sdk` for runtime config-center values.
+  - `@aftership/nodejs-common` as shared Node utility package.
+  - Apollo/Koa/GraphQL stack: `apollo-server-koa`, `apollo-datasource-rest`, `graphql`, `graphql-tools`, `@graphql-tools/*`, and codegen packages.
+- Runtime calls:
+  - `MARKETING_API_PREFIX` -> `prod-mt-convtools` `/conversions/:version`; primary legacy marketing/conversions backend for coupon campaigns, newsletters, marketing-message contents, SMS campaigns/content, automations, popups/forms, asset templates, store connections, storage status, product metadata, and contact-retention status.
+  - `MARKETING_NEW_API_PREFIX_FLOW` -> `prod-mt-flow` `/marketing/:version`; flow list/detail/create/update/delete.
+  - `MARKETING_NEW_API_PREFIX_FLOW_STEP` -> `prod-mt-flowsteps` `/marketing/:version`; predefined triggers/actions, flow conditions, and flow-step email-content test/sample endpoints.
+  - `DATA_API_DMS_PREFIX` -> `data-dms` `/dms/:version`; email stats/revenue, email dashboard, popup analytics, SMS analytics, flow analytics, common store revenue, organization profile, and related reporting APIs.
+  - `DATA_API_OLD_PREFIX` -> `data-conversions` `/conversions/:version`; legacy total revenue endpoint.
+  - `EMAIL_REPORT_PLATFORM_API_PREFIX` -> `pltf-email-report`; used by contact-retention backup export email report creation.
+  - `MESSAGE_API_PREFIX` -> `pltf-messages` `/messages/:version`; SMS compliance, marketing phone numbers, toll-free verification; code uses `biz_code`/`product_code` values tied to `conversions`.
+  - `SMS_CORE_API_PREFIX` -> `prod-ss-sms-core` `/sms/:version`; SMS number applications, default store URL, and store URL verification.
+  - `MARKETING_RISK_API_PREFIX` -> `prod-mt-riskmgmt`; spam reviews, soft/hard filters, blacklist checks, SMS number application update, system template checks.
+  - `MARKETING_FEATURE_API_PREFIX` -> `prod-mt-featuremgmt`; feature control/trials/usage limits.
+  - `CONNECTOR_API_PREFIX`, `CONNECTION_PLATFORM_API_PREFIX`, `CONNECTION_PLATFORM_YAPI_API_PREFIX` -> connector/platform services for stores, collections, products, web pixels, and platform connections.
+  - `CONNECTOR_CONTACTS_API_PREFIX` -> `prod-acrm` `/acrm/:version`; contacts, segments, field values, import/export, dashboards, and contact properties.
+  - `ACCOUNT_BUSINESS_API_PREFIX`, `BUSINESS_API_PREFIX`, `BILLING_API_PREFIX` -> account sender emails, memberships/products-in-use, and billing/trial feature data.
+  - `SCREENSHOT_API_PREFIX` -> `pltf-capture`; email screenshot generation for templates.
+  - `SEARCH_API_PREFIX` and `CHATS_API_PREFIX` -> conversion-tool search/chats settings and Facebook channel flows.
+  - `RECOMMENDATION_ADMIN_API_PREFIX`, `NOTIFICATIONS_API_PREFIX`, `RULE_ENGINE_FLOW_API_PREFIX`, `ENS_TEMPLAING_API`, `DATA_API_CUSTOMER360`, and `STATIC_API_PREFIX` are also configured and used by narrower datasources.
+- Build-time dependencies:
+  - Node.js 16.16.0 runtime/build image; `yarn build` runs clean, GraphQL codegen, TypeScript build, and build check.
+  - Jenkins uses the AfterShip shared Jenkins library with `flow = "nodejs"` and appName `bff-api.automizely.com_marketing_admin`.
+  - No static asset upload is required for this service (`requireStaticAsset = false`).
+- Shared packages:
+  - `@aftership/am-filters` is the strongest team-package dependency, imported by segment/newsletter/flow/common-filter code.
+  - Config-center and node-common are shared runtime infrastructure packages.
+- Inferred but unconfirmed:
+  - `marketing.automizely.com` is the likely old frontend host consuming `/marketing/admin/graphql`; evidence in this repo is the BFF path and `MARKETING_DOMAIN`, but client-side calls should be verified in the host repo.
+  - `sdks.am-static.com_admin-marketing-coupon`, `sdks.am-static.com_admin-email`, `sdks.am-static.com_admin-sms`, `sdks.am-static.com_admin-marketing-data`, and `sdks.am-static.com_admin-flow` likely consume matching GraphQL domains from this BFF, but this repo has no direct package/MF reference to them.
+  - `conversionsConnections` appears in GraphQL schema, but no resolver/datasource implementation was found in local search; treat as stale or incomplete until client/runtime behavior confirms otherwise.
+
+## Business Flows
+- flow_id: legacy_marketing_admin_graphql
+  - role: GraphQL BFF entrypoint for old Marketing Admin; wraps many legacy product capabilities under a single `/marketing/admin/graphql` API.
+  - upstream/downstream repos: downstream likely `marketing.automizely.com` and old admin SDK modules; upstream services include conversions, flow, flowsteps, DMS, ACRM, connectors, messages/SMS, risk, feature, billing, notification, search, chats.
+- flow_id: coupon_campaigns
+  - role: Exposes coupon list/detail/statistics/save/delete GraphQL fields, then calls `MARKETING_API_PREFIX` `/internal/coupon-campaigns` and `/internal/statistics/coupon-campaigns`.
+  - upstream/downstream repos: likely consumed by coupon admin UI modules; upstream backend is `prod-mt-convtools` conversions/marketing API.
+- flow_id: email_campaigns_and_content
+  - role: Exposes newsletters, email content, asset templates, old/new automations, price-drop/back-in-stock email, test-email, sender/reply-to, and related dashboard/report fields.
+  - upstream/downstream repos: frontend host/email modules -> this BFF -> `prod-mt-convtools`, `prod-mt-flowsteps`, `pltf-capture`, `pltf-account-business`, `data-dms`, `pltf-email-report`.
+- flow_id: sms_campaigns_and_compliance
+  - role: Exposes SMS content/newsletter CRUD/send/test, recipient and credit checks, SMS analytics, SMS compliance and phone-number application flows.
+  - upstream/downstream repos: frontend host/SMS modules -> this BFF -> `prod-mt-convtools`, `pltf-messages`, `prod-ss-sms-core`, `prod-mt-riskmgmt`, `data-dms`.
+- flow_id: flow_and_notification_workflows
+  - role: Exposes flow list/detail/template/save/delete/init flags/analytics and maps admin DSL into backend flow and flow-step APIs; back-in-stock flow also updates notification registration form settings.
+  - upstream/downstream repos: frontend flow UI -> this BFF -> `prod-mt-flow`, `prod-mt-flowsteps`, `prod-mt-convtools`, `prod-as-notifications`, `data-dms`, and `@aftership/am-filters`.
+- flow_id: analytics_and_conversions_reporting
+  - role: Aggregates email stats/revenue, email dashboard, popup conversion/subscriber/add-to-cart analytics, SMS stats, total revenue, marketing-message performances, and store connection start dates.
+  - upstream/downstream repos: admin reporting/data UIs -> this BFF -> `data-dms`, `data-conversions`, and `prod-mt-convtools` store-connections.
+- flow_id: contacts_segments_crm
+  - role: Exposes contact list/detail/activity/properties, segment CRUD/search/count/export, filter-field values, contact dashboards, import/export tasks, and converts legacy segment/newsletter filters.
+  - upstream/downstream repos: admin CRM/filter UIs -> this BFF -> `prod-acrm`, connector services, DMS, and `@aftership/am-filters`.
+- flow_id: marketing_host_and_screenshots
+  - role: Config carries `MARKETING_DOMAIN` for the old marketing host and contains an MJML screenshot page URL path; actual email-template screenshot creation currently delegates to `SCREENSHOT_API_PREFIX`.
+  - upstream/downstream repos: `marketing.automizely.com` relationship is partially evidenced by config and screenshot path, but frontend consumption still needs host-side confirmation.
+
+## Important Entrypoints
+- path: `src/main.ts`
+  - why it matters: process bootstrap; waits for config-center, optionally codegens types in development, enables New Relic in production/testing, starts Koa HTTP server on configured port.
+- path: `src/app.ts`
+  - why it matters: Koa middleware stack and GraphQL mount points: `${basicPath}/graphql` and `${basicPath}/public/graphql`.
+- path: `src/apolloServer.ts`
+  - why it matters: Apollo server construction, schema/resolver binding, datasource factory, store-key validation context, logging/metrics/New Relic plugins.
+- path: `src/schema.ts`
+  - why it matters: merges all `graphql/**/type.graphql`, `input.graphql`, common schema, query, and mutation definitions.
+- path: `src/resolvers.ts`
+  - why it matters: recursively discovers and merges every `src/datasources/**/resolver.ts`, so adding a resolver file changes the GraphQL surface.
+- path: `src/datasources/index.ts`
+  - why it matters: central datasource registry; shows supported BFF domains and controller names.
+- path: `src/utils/RESTDataSourceBasic.ts`
+  - why it matters: central REST transport wrapper; resolves per-datasource service prefix and forwards auth/store/account/trace headers.
+- path: `config/production.js`, `config/testing.js`, `config/development.js`
+  - why it matters: authoritative fallback map from config names to backend service hosts, marketing host domain, SMS/message/search/chats/reporting services, and screenshot API.
+- path: `graphql/query.graphql`, `graphql/mutation.graphql`
+  - why it matters: old Marketing Admin GraphQL contract across coupon/email/SMS/flow/analytics/conversions/contact domains.
+- path: `src/datasources/coupon/service.ts`
+  - why it matters: coupon campaign CRUD/statistics -> `MARKETING_API_PREFIX`.
+- path: `src/datasources/newsletters/service.ts`, `src/datasources/emailContent/service.ts`, `src/datasources/email/service.ts`
+  - why it matters: email/newsletter/content/test-email BFF mapping -> marketing-message and flowsteps APIs.
+- path: `src/datasources/smsNewsletter/service.ts`, `src/datasources/smsContent/service.ts`, `src/datasources/smsData/service.ts`, `src/datasources/message/service.ts`, `src/datasources/smsCore/service.ts`
+  - why it matters: SMS campaign/content/analytics/compliance/phone-number flows.
+- path: `src/datasources/emailData/service.ts`, `src/datasources/emailDashboard/service.ts`, `src/datasources/popupsData/service.ts`, `src/datasources/commonStatsData/service.ts`, `src/datasources/flowAnalytics/service.ts`
+  - why it matters: DMS/data analytics integration.
+- path: `Jenkinsfile`, `Dockerfile`, `.github/workflows/*.yaml`
+  - why it matters: service appName, Node 16.16.0 build/runtime, branch patterns, and CI checks.
+
+## Evidence
+- file_or_command: `sed -n '1,240p' /Users/wb.chen/Documents/Project/skills/NOTIFICATION_REPO_MAP_RESEARCH.md`
+  - finding: Read protocol first; Per-Repo Research Output Schema and branch-track rules require verifying actual repo branches and recording evidence.
+- file_or_command: `GIT_OPTIONAL_LOCKS=0 git remote -v`
+  - finding: `origin` points to `git@github.com:Wynne-cwb/bff-api.automizely.com_marketing_admin.git`; `upstream` points to `git@github.com:AfterShip/bff-api.automizely.com_marketing_admin.git`.
+- file_or_command: `GIT_OPTIONAL_LOCKS=0 git branch -a --no-color`
+  - finding: `master`, `staging`, `testing`, multiple `release/*`, and feature/hotfix branches exist; no `master_v9`, `feat/flow-v3-polaris-v13`, or `feat/flow-v3` was found. Current branch was `feat/data-retention`.
+- file_or_command: `README.md:1-3`
+  - finding: README identifies this as a Node.js BFF service layer built on Apollo GraphQL.
+- file_or_command: `package.json:1-17`
+  - finding: package name is `bff-api.automizely.com_marketing_admin`; start/build/codegen scripts show Node build output and GraphQL codegen.
+- file_or_command: `package.json:38-75`
+  - finding: dependencies include `@aftership/am-filters`, config-center SDK, node-common, Apollo datasource/server, GraphQL, Koa, and upload/runtime libraries.
+- file_or_command: `src/app.ts:14-43`
+  - finding: Koa starts both private and public Apollo servers; private GraphQL path is `${basicPath}/graphql`, public is `${basicPath}/public/graphql`.
+- file_or_command: `config/default.js`
+  - finding: `basicPath` is `/marketing/admin`, so private GraphQL resolves to `/marketing/admin/graphql`.
+- file_or_command: `src/apolloServer.ts`
+  - finding: Apollo server binds `typeDefs`, `resolvers`, `dataSources`, `handleStoreKeyValidation`, logging/metrics/cache/New Relic plugins.
+- file_or_command: `src/schema.ts`
+  - finding: schema merges all GraphQL type/input/common files plus `query.graphql` and `mutation.graphql`; public schema only merges common files and `publicQuery.graphql`.
+- file_or_command: `src/resolvers.ts`
+  - finding: resolver files are discovered recursively from `src/datasources/**/resolver.ts` and merged into one resolver object.
+- file_or_command: `src/publicResolver.ts`
+  - finding: public resolver has an empty `Query`, so public server is present but currently not a substantial API surface.
+- file_or_command: `config/production.js:5-35`
+  - finding: production service prefix map includes messages, billing, connectors, business/account-business, conversions/marketing API, email-report, feature, flow, flowsteps, risk, data-marketing, data-conversions, ACRM, DMS, notifications, rule-engine, marketing host, SMS core, templating, search, chats, and capture.
+- file_or_command: `src/utils/RESTDataSourceBasic.ts:69-73`
+  - finding: each datasource resolves baseURL from `configCenterManager.getEnvConfig(apiPrefixConfigName)` and replaces `:version`.
+- file_or_command: `src/utils/RESTDataSourceBasic.ts:101-145`
+  - finding: outbound calls forward API key, trace ID, Cloudflare ray, recaptcha, `Am-*` store/account/app headers, cross-org headers, and data headers.
+- file_or_command: `src/datasources/index.ts:80-177`
+  - finding: datasource registry includes coupon, store, billing, contact/segment, connectors, risk, notification, email/newsletter/automation/reporting, flow, popup/form, SMS, recommendation, customer360, product metadata, UTM, search, chats, screenshots, KYC, and account-business.
+- file_or_command: `graphql/query.graphql:34-40`
+  - finding: query schema exposes coupon campaign fields and `conversionsConnections`.
+- file_or_command: `rg -n "conversionsConnections|toGetConversions|Connections" src/datasources src/resolvers.ts graphql/query.graphql graphql/conversionsConnections/type.graphql`
+  - finding: `conversionsConnections` appears in schema/type/generated code, but no datasource/resolver implementation was found; `storeConnections` does have resolver/service implementation.
+- file_or_command: `src/datasources/storeConnections/service.ts:1-15`
+  - finding: `storeConnections` calls `MARKETING_API_PREFIX` `/internal/store-connections` and returns `response.data.stores`.
+- file_or_command: `graphql/query.graphql:46-68`, `graphql/mutation.graphql:75-109`
+  - finding: newsletter, price-drop, back-in-stock email queries and mutations are first-class GraphQL fields.
+- file_or_command: `src/datasources/newsletters/service.ts:25-36`
+  - finding: newsletter service uses `MARKETING_API_PREFIX` and marketing-message campaign/content/report-export endpoints.
+- file_or_command: `src/datasources/newsletters/service.ts:57-190`
+  - finding: newsletter service creates/updates/deletes/sends campaigns, sends test campaigns, counts recipients, manages follow-up emails, and CRUDs contents.
+- file_or_command: `src/datasources/emailContent/service.ts:26-39`
+  - finding: email content service combines `MARKETING_API_PREFIX` email-content endpoints with `MARKETING_NEW_API_PREFIX_FLOW_STEP` flowstep email-content test/sample endpoints.
+- file_or_command: `src/datasources/emailContent/service.ts:260-325`
+  - finding: test email content/template/sample data calls are sent to flowsteps email-content endpoints and minify HTML before sending.
+- file_or_command: `src/datasources/coupon/service.ts:11-63`
+  - finding: coupon service uses `MARKETING_API_PREFIX`, `/internal/coupon-campaigns`, and `internal/statistics/coupon-campaigns` for list/detail/create/update/delete/statistics.
+- file_or_command: `graphql/query.graphql:217-228`, `graphql/mutation.graphql:46-73`
+  - finding: SMS content, SMS newsletter, and SMS data are exposed in GraphQL.
+- file_or_command: `src/datasources/smsNewsletter/api.ts:1-17`
+  - finding: SMS newsletter REST endpoints are under `/internal/marketing-message/sms-campaigns`, `/internal/marketing-message/campaigns/*`, and `/internal/marketing-message/contents`.
+- file_or_command: `src/datasources/smsNewsletter/service.ts:17-151`
+  - finding: SMS newsletter service uses `MARKETING_API_PREFIX` and supports detail/create/update/delete/cancel/send/test/recipient-credit/content operations.
+- file_or_command: `src/datasources/message/service.ts:10-113`
+  - finding: message service uses `MESSAGE_API_PREFIX`, API version v2, and product/biz codes tied to `conversions` for SMS compliance and marketing phone number flows.
+- file_or_command: `src/datasources/smsCore/service.ts:9-44`
+  - finding: SMS core service uses `SMS_CORE_API_PREFIX` for SMS number applications, default store URL, and store URL verification.
+- file_or_command: `graphql/query.graphql:176-196`, `graphql/mutation.graphql:150-157`
+  - finding: flow list/detail/template/analytics/init flags and save/delete mutations are exposed.
+- file_or_command: `src/datasources/flow/service.ts:43-84`
+  - finding: flow service uses `MARKETING_NEW_API_PREFIX_FLOW`, `/flows/internal/marketing-flows`, and joins email stats from `emailData`.
+- file_or_command: `src/datasources/flow/service.ts:500-630`
+  - finding: create/update flow maps admin DSL, content IDs, condition/action IDs, and back-in-stock popup/subscription settings into flow/form backend calls.
+- file_or_command: `src/datasources/flowDSLManager/service.ts:1-28`
+  - finding: flow DSL manager uses flowstep API for predefined triggers and action templates.
+- file_or_command: `graphql/query.graphql:230-272`
+  - finding: email dashboard/overview, email data stats, popup analytics, conversion chart, top campaign, subscriber, and add-to-cart reporting fields exist.
+- file_or_command: `src/datasources/emailData/service.ts:31-109`
+  - finding: email stats and revenue APIs are under `DATA_API_DMS_PREFIX`, including `multi-type-email-overview`, store/biz/content/experiment/contact stats, and revenue endpoints.
+- file_or_command: `src/datasources/emailDashboard/service.ts:15-24`
+  - finding: email dashboard uses DMS endpoints `email-revenue-category`, `email-category`, and `marketing-flow-revenue`.
+- file_or_command: `src/datasources/popupsData/service.ts:20-39`
+  - finding: popup analytics uses DMS store, promotion type, and promotion ID stats/revenue/add-to-cart/subscriber endpoints.
+- file_or_command: `src/datasources/contactRetention/service.ts:14-23`
+  - finding: contact retention status/popup state uses `MARKETING_API_PREFIX`; backup export temporarily switches to `EMAIL_REPORT_PLATFORM_API_PREFIX`.
+- file_or_command: `src/datasources/assetTemplates/service.ts:73-89`
+  - finding: email template screenshot helper references `MARKETING_DOMAIN` `/screenshot/mjmlEmail`; actual `getEmailScreenshot` delegates to `emailScreenshot` datasource.
+- file_or_command: `src/datasources/emailScreenshot/service.ts`
+  - finding: email screenshot service uses `SCREENSHOT_API_PREFIX` `/internal/screenshots` and returns `image_url`.
+- file_or_command: `Jenkinsfile:5-26`
+  - finding: Jenkins appName/gitRepoName match this repo, `flow = "nodejs"`, Node 16.16.0 essential image, staging and production environments enabled, `yarn test` configured.
+- file_or_command: `Dockerfile:2-9`
+  - finding: runtime image is Node 16.16.0 TypeScript onbuild, `PORT=9003`, build runs, exposes 9003, and starts `node build/main.js`.
+- file_or_command: `.github/workflows/pr-check.yaml:3-12`, `.github/workflows/sonarqube.yaml:3-17`
+  - finding: PR checks and SonarQube branch patterns support `feat/*`, `hotfix/*`, `release/*`, `testing`, `staging`, and `master`, with Node 16.16.0 in Sonar.
+
+## Open Questions
+- question: Which frontend repos currently consume each GraphQL field?
+  - why it matters: This repo strongly suggests consumers such as `marketing.automizely.com` and admin SDK modules by domain, but target-repo-only evidence cannot prove the client-side ownership split.
+- question: Is `conversionsConnections` live, deprecated, or an incomplete schema residue?
+  - why it matters: The schema exposes it, but no resolver/datasource was found; agents should avoid relying on it without runtime/client confirmation.
+- question: What branch should be used for non-production fixes?
+  - why it matters: Default Notification `active_major` branches are absent; work may need `master`, `staging`, `testing`, or a release branch depending on the rollout track.
+- question: How different are live config-center values from checked-in `config/*.js` fallbacks?
+  - why it matters: service routing in testing/non-production can be overridden by config-center; local code proves config keys and fallbacks, not every live environment value.
+- question: What is the migration boundary between this old BFF and `bff-api.automizely.com_marketing_admin_v2`?
+  - why it matters: This repo still owns many old admin domains; future work should verify whether a feature has moved to v2 before changing this legacy BFF.

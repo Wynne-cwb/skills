@@ -1,0 +1,225 @@
+# sdks.am-static.com_admin-marketing-basic
+
+## Summary
+- project_id: `@aftership/admin-marketing-basic`
+- repo_name: `sdks.am-static.com_admin-marketing-basic`
+- upstream_url: `https://github.com/AfterShip/sdks.am-static.com_admin-marketing-basic`
+- local_path: `/Users/wb.chen/Documents/AfterShip/Notification/sdks.am-static.com_admin-marketing-basic`
+- repo_type: React/TypeScript frontend shared SDK, npm package, and Module Federation remote for AfterShip marketing/admin notification surfaces.
+- confidence: High for source-level responsibilities, MF config, branch existence, runtime calls, and package dependencies. Medium for cross-repo ownership mapping where only package or remote names are available.
+
+## Responsibility
+- Owns:
+  - Shared marketing/admin UI primitives, form controls, modals, selectors, settings pages, toast/global modal/page wrappers, AI text assistant components, and common utilities exported through `src/index.ts` and `src/mfExports/*`.
+  - `BasicDependenciesProvider`, which wires auth readiness, marketing admin GraphQL clients, RBAC, reCAPTCHA, onboarding SDK, NiceModal, intro steps, toast, and global modal around consuming apps.
+  - Common notification/email/SMS/WhatsApp settings surfaces: address, image library, custom fonts, merge-tag format/fallback, email sender info, product documents, SMS compliance slot, WhatsApp setup, and billing entry.
+  - Shared notification business hooks for notification config, upgrade/migration scheduling, flow/template selectors, AI text generation, dynamic schema rendering, merge tags, image library, sender/KYC helpers, and message-resource pub store.
+  - Module Federation remote source config named `notification_basic`, served under `notification-basic`, plus npm package output under `lib`.
+- Does not own:
+  - Marketing admin BFF GraphQL resolvers or notification-center public API; this repo registers clients and calls them.
+  - Host admin shell/navigation implementation; it consumes `@aftership/admin-host-runtime` and `AftershipNavigation`.
+  - Notification billing, billing widgets, and accounts widgets MF remotes; it consumes them through `notificationBilling`, `aftershipBillingWidgets`, and `aftershipAccountsWidgets`.
+  - Full product pages for dedicated email/flow repos; this repo provides shared components, hooks, settings, and selectors used by those surfaces.
+  - Fork-first remote repair for this checkout; remote anomaly is recorded only.
+- Common change areas:
+  - MF exports: `src/mfExports/*`, `mf.config.js`, `config/constants/mf.js`, `config/constants/domain.js`, `config/webpack/webpack.module.federation.config.js`.
+  - Runtime provider/auth/BFF setup: `src/features/BasicDepProvider/**`, `src/business/providers/**`, `codegen.yml`.
+  - Notification/email/flow utilities: `src/business/hooks/**`, `src/components/Selectors/**`, `src/graphql/v2/**`, `src/hooks/useFetchNotificationRule.ts`.
+  - Common settings and billing/KYC wrappers: `src/features/CommonSettings/**`, `src/features/KYC/**`, `src/components/GrowthPlanCard/**`.
+  - Dynamic form/filter adapters: `src/hooks/dynamicSchema/**`.
+
+## Branch Tracks
+- production: `origin/master` exists at `106d55fc` (`Merge pull request #2057 from leeyowu/master`). Note: in this checkout, `origin` points to the AfterShip upstream, not the user's fork.
+- legacy_v9: Protocol candidate `origin/master_v9` is absent. Repo has `origin/feat/legacy-polaris-v9`, but that is not the protocol's `master_v9` branch and should be treated as repo-specific until confirmed.
+- active_major: `origin/feat/flow-v3-polaris-v13` exists at `e10e31fc` and should be preferred by protocol; fallback `origin/feat/flow-v3` exists at `2af7a1ba`.
+- repo_specific_notes:
+  - Current local branch: `feat/migration_polaris_v13` tracking `origin/feat/migration_polaris_v13`.
+  - Release/staging/testing branches exist (`origin/release/*`, `origin/staging`, `origin/testing`).
+  - Remote anomaly: `local` points to `git@github.com:Wynne-cwb/sdks.am-static.com_admin-marketing-basic.git`; `origin` points to `git@github.com:AfterShip/sdks.am-static.com_admin-marketing-basic.git`; no `upstream` remote exists. Fork-first convention expects `origin` as fork and `upstream` as company repo, so this checkout is not fork-first.
+
+## Module Federation
+- enabled: Yes.
+- exposes:
+  - `./basicFormComponents` -> `./src/mfExports/basicFormComponents.ts`
+  - `./basicComponents` -> `./src/mfExports/basicComponents.ts`
+  - `./basicHooks` -> `./src/mfExports/basicHooks.ts`
+  - `./businessComponents` -> `./src/mfExports/businessComponents.ts`
+  - `./businessHooks` -> `./src/mfExports/businessHooks.ts`
+  - `./commonTypings` -> `./src/mfExports/commonTypings.ts`
+  - `./commonUtils` -> `./src/mfExports/commonUtils.ts`
+  - `./effectComponents` -> `./src/mfExports/effectComponents.ts`
+  - `./globalConstants` -> `./src/mfExports/globalConstants.ts`
+  - `./initBasic` -> `./src/mfExports/initBasic.ts`
+- remotes:
+  - `notificationBilling`: `notification_billing@<sdks-domain>/notification-billing/remoteEntry.js`
+  - `aftershipBillingWidgets`: `aftership_billing_ui@<sdks-domain>/aftership-billing-ui/v2/remoteEntry.js`
+  - `aftershipAccountsWidgets`: `aftership_accounts_widgets@<sdks-domain>/accounts/v1/remoteEntry.js`
+  - `AftershipNavigation`: `aftership_navigation@<sdks-domain>/aftership_navigation/v2/remoteEntry.js`
+- shared_packages:
+  - Host and remote shared singletons include `react`, `react-dom`, `react-router`, `react-router-dom`, `@aftership/automizely-product-auth`, `@aftership/aha`, `@aftership/aha-icons`, `@aftership/meerkat-sdk`, `@aftership/automizely-frontend-dev-kit`, `@aftership/growth-components`, `@aftership/datacat`, `@shopify/react-i18n`, `@shopify/app-bridge`, `@shopify/app-bridge-react`, and `@shopify/app-bridge-utils`; remote also shares `formik`.
+- branch_alignment:
+  - Source config uses `MODULE_FEDERATION_NAME = notification_basic`, `DOMAIN_SUBDIRECTORY = notification-basic`, and MF dev port `8202`.
+  - `package.json` scripts build MF with webpack and SDK with Vite; `webpack.module.federation.config.js` uses `@module-federation/enhanced/webpack`.
+  - Generated `build/mf-manifest.json` appears stale or from an older branch/build (`admin_marketing_basic`, buildVersion `1.5.50`) while source config/package currently say `notification_basic` and version `1.5.51`; prefer source config as evidence for this report.
+
+## Team Repo Dependencies
+- Direct dependencies:
+  - `@aftership/am-dynamic-form` and `@aftership/am-filters` are runtime dependencies and are used by dynamic schema/rendering hooks.
+  - `@aftership/admin-host-runtime` is used for route basename and navigation visibility updates.
+  - `@aftership/sdk-journey-onboarding` is used by `OnboardingSDKProvider` with `internalPlatformCode="ens"`.
+  - `@aftership/automizely-rbac-react`, `@aftership/aha`, `@aftership/aha-icons`, `@aftership/datacat`, and `@aftership/meerkat-sdk` are runtime/shared AfterShip packages.
+  - `@aftership/admin-marketing-billing` is a peer/external package dependency; MF imports primarily use `notificationBilling/billingV2`.
+- Runtime calls:
+  - Marketing admin BFF GraphQL is registered for `default`/`v1` at `/marketing/admin/graphql` and `v2` at `/marketing/admin/v2/graphql`, with production/staging/testing host mappings.
+  - Notification-center public API is called at `/notification-center/public/v1/sale-rule-runs` through `useFetchNotificationRule`.
+  - MF runtime remotes are consumed for notification billing, billing widgets, accounts widgets, and navigation.
+  - Product auth APIs provide organization, user, current connection, and token context for BFF headers.
+- Build-time dependencies:
+  - `@aftership/module-federation-typescript` generates MF remote types for non-development builds.
+  - `@aftership/deploy-frontend-assets` uploads built assets.
+  - `@aftership/eslint-plugin-pixel-tagging` is wired into webpack and scripts.
+  - `@aftership/automizely-frontend-dev-kit` provides `graphqlFetchInstance` and generated hook runtime.
+  - GraphQL codegen reads local schema endpoints `localhost:9003/marketing/admin/graphql` and `localhost:9006/marketing/admin/v2/graphql`.
+- Shared packages:
+  - See `Module Federation.shared_packages`; Vite SDK build also externalizes React, AHA, product-auth, frontend-dev-kit, billing package/remotes, accounts widgets, navigation, Sentry, Datacat, Growth Components, and routers.
+- Inferred but unconfirmed:
+  - `@aftership/admin-marketing-billing` / `notificationBilling` likely maps to `sdks.am-static.com_admin-marketing-billing`, based on package name, MF remote name, and repo queue naming.
+  - Marketing admin BFF calls likely map to `bff-api.automizely.com_marketing_admin` and/or `bff-api.automizely.com_marketing_admin_v2`, based on URL paths and `codegen.yml`.
+  - `@aftership/am-dynamic-form`, `@aftership/am-filters`, and `@aftership/automizely-frontend-dev-kit` likely map to same-named team repos in the queue/package ecosystem, but this report only verified package/import evidence locally.
+
+## Business Flows
+- flow_id: `marketing_admin_basic_shared_runtime`
+  - role: Shared SDK/MF remote supplying UI, hooks, provider context, GraphQL client bootstrap, auth headers, settings pages, and shared components to marketing/admin notification apps.
+  - upstream/downstream repos: Upstream BFF is marketing admin GraphQL; downstream consumers are inferred host/product remotes such as admin-email/admin-flow/admin notification surfaces.
+- flow_id: `notification_email_sms_flow_selection`
+  - role: Provides selectors that fetch public flows by scenarios and fetch default content variants/templates by `flow_id`, `action_identities`, and language; applies spam-review disabled state for templates.
+  - upstream/downstream repos: Upstream BFF v2 GraphQL flow/contentVariant APIs; downstream email/SMS/flow UIs that need flow/template selection.
+- flow_id: `notification_upgrade_migration`
+  - role: Provides migration/upgrade utilities, modal, onboarding popup, and migrated-data banner for Notifications 2.0; tracks SMS enabled status and migration schedule and can export legacy email workflow metrics.
+  - upstream/downstream repos: Upstream BFF v2 migration/analysis/storage APIs and billing widgets; downstream aftership/ENS notification UI.
+- flow_id: `common_settings_email_sms_whatsapp`
+  - role: Provides common settings routes and cards for address, SMS compliance slot, image library, custom fonts, merge-tag settings, email sender info, product documents, WhatsApp setup, and billing.
+  - upstream/downstream repos: Upstream BFF v1/v2 common settings, account, sender, storage, image, and billing APIs/remotes; downstream settings pages embedded by product apps.
+- flow_id: `notification_center_sale_rule_run`
+  - role: `useFetchNotificationRule` posts `sale_rule_group_id` to notification-center public API and stores the returned form/router/url payload for notification rule execution.
+  - upstream/downstream repos: Upstream notification-center public API; downstream components/hooks that need sale-rule derived notification routing.
+
+## Important Entrypoints
+- path: `README.md`
+  - why it matters: States the package is shared UI/components/hooks/feature modules for AfterShip marketing apps and is consumed both as MF remote and npm package; documents local ports `9202` and `8202`.
+- path: `package.json`
+  - why it matters: Defines npm identity `@aftership/admin-marketing-basic`, version `1.5.51`, SDK/MF scripts, dependencies, externals, and peer dependencies.
+- path: `src/index.ts`
+  - why it matters: SDK package root re-exports all MF export groups.
+- path: `src/mfExports/*.ts`
+  - why it matters: Explicit public API surface for MF and SDK consumers, including components, hooks, business components/hooks, typings, constants, utilities, and provider initialization.
+- path: `mf.config.js`
+  - why it matters: Source of MF host/remote config, exposes, remotes, and shared singleton packages.
+- path: `config/constants/mf.js`
+  - why it matters: Maps exposed modules and remote names.
+- path: `config/constants/domain.js`
+  - why it matters: Defines MF name `notification_basic`, subdirectory `notification-basic`, local example/MF ports, and environment domains.
+- path: `config/utils/path.js`
+  - why it matters: Builds public paths and remoteEntry URLs for billing/accounts/navigation/notification-billing remotes.
+- path: `config/webpack/webpack.module.federation.config.js`
+  - why it matters: Builds the MF remote through ModuleFederationPlugin and emits remote types outside development.
+- path: `vite.config.ts`
+  - why it matters: Builds the npm SDK package from `src/index.ts` to `lib` and externalizes MF remotes/package peers.
+- path: `src/features/BasicDepProvider/index.tsx`
+  - why it matters: Main runtime wrapper for auth, GraphQL setup, RBAC, reCAPTCHA, onboarding SDK, modal/toast/global UI, Sentry for non-email product codes, and notification onboarding popup.
+- path: `src/features/BasicDepProvider/effects/useAuthEffect.ts`
+  - why it matters: Registers marketing admin GraphQL clients and builds headers from organization, connection, product code, env, account, and auth token.
+- path: `src/business/providers/OnboardingSDKProvider/index.tsx`
+  - why it matters: Integrates journey onboarding SDK with `internalPlatformCode="ens"` and maps `aftership` product code to `tracking`.
+- path: `src/features/CommonSettings/CommonRoutes.tsx`
+  - why it matters: Defines settings routes for brand, address, image library, custom fonts, merge-tag format/fallback, WhatsApp, email sender info, product documents, billing, and SMS compliance slot.
+- path: `src/business/hooks/useNotificationConfigUtils.ts`
+  - why it matters: Fetches and updates notification config when `productCode === 'aftership'`.
+- path: `src/business/hooks/useNotificationUpgradeUtils.ts`
+  - why it matters: Handles customer migration eligibility, migration schedule, upgrade queue, suspension update, and SMS status storage.
+- path: `src/components/Selectors/hooks/useGetFlowsAndTemplates.ts`
+  - why it matters: Connects flow list and default content/template selection to BFF v2 GraphQL.
+- path: `src/hooks/useFetchNotificationRule.ts`
+  - why it matters: Calls notification-center public `/sale-rule-runs` API with product code header.
+- path: `src/hooks/dynamicSchema/useRenderDynamicFormV2.ts` and `src/hooks/dynamicSchema/useRenderMultiFilterV2.ts`
+  - why it matters: Adapts BFF dynamic schema/config to `am-dynamic-form` and `am-filters`, including billing feature availability for filters.
+- path: `src/typings/module-federation-remotes.d.ts`
+  - why it matters: Declares the runtime contracts consumed from `notificationBilling`, `aftershipBillingWidgets`, and `aftershipAccountsWidgets`.
+
+## Evidence
+- file_or_command: `sed -n '1,240p' NOTIFICATION_REPO_MAP_RESEARCH.md`
+  - finding: Confirmed report schema, branch track rules, read-only source research, and requirement to record evidence and remote anomalies.
+- file_or_command: `sed -n '1,260p' repo-research/INDEX.md`
+  - finding: Target repo was pending, local checkout was found under `~/Documents/AfterShip/Notification/...`, and index noted origin/upstream anomaly.
+- file_or_command: `git remote -v`
+  - finding: `local` points to `git@github.com:Wynne-cwb/...`; `origin` points to `git@github.com:AfterShip/...`; no `upstream` remote.
+- file_or_command: `git for-each-ref refs/remotes/origin/master refs/remotes/origin/master_v9 refs/remotes/origin/feat/flow-v3-polaris-v13 refs/remotes/origin/feat/flow-v3`
+  - finding: `origin/master`, `origin/feat/flow-v3-polaris-v13`, and `origin/feat/flow-v3` exist; `origin/master_v9` produced no ref.
+- file_or_command: `git rev-parse --abbrev-ref HEAD`
+  - finding: Current local branch is `feat/migration_polaris_v13`.
+- file_or_command: `git status --short`
+  - finding: Target checkout was clean before report writing.
+- file_or_command: `README.md:1-10`
+  - finding: Repo describes itself as shared UI/components/hooks/feature modules consumed as MF remote and npm package; local dev ports are `9202` and `8202`.
+- file_or_command: `package.json:2-36`
+  - finding: Package is `@aftership/admin-marketing-basic` version `1.5.51`; scripts include `mf`, `build`, `build:sdk`, codegen, tsc, test, and pixel checks.
+- file_or_command: `package.json:48-115`, `package.json:196-232`
+  - finding: Runtime/dev/peer evidence for AfterShip packages, billing peer/external, admin host runtime, dynamic form/filter, product auth, frontend dev kit, navigation, MF types, and deploy assets.
+- file_or_command: `config/constants/mf.js:3-21`
+  - finding: Lists all MF exposes and remote aliases.
+- file_or_command: `mf.config.js:58-135`
+  - finding: Defines remote config with filename `remoteEntry.js`, exposes/remotes, and shared singletons.
+- file_or_command: `config/constants/domain.js:1-17`
+  - finding: Defines example port `9202`, MF port `8202`, subdirectory `notification-basic`, and MF name `notification_basic`.
+- file_or_command: `config/utils/path.js:35-66`
+  - finding: Builds remoteEntry URLs for accounts, billing UI, navigation, and notification billing across sdks domains.
+- file_or_command: `config/webpack/webpack.module.federation.config.js:20-65`
+  - finding: Builds MF remote using ModuleFederationPlugin and emits MF types outside development.
+- file_or_command: `vite.config.ts:22-62`
+  - finding: Builds SDK library from `src/index.ts` to `lib` and externalizes package peers and MF remotes.
+- file_or_command: `src/mfExports/effectComponents.ts:1-31`
+  - finding: Exposes `BasicDependenciesProvider`, context, toast, page/modal/form wrappers, feedback, locator, product selectors, navigation adaptor, real test data, and merge tag popover.
+- file_or_command: `src/features/BasicDepProvider/index.tsx:27-108`
+  - finding: Runtime provider wires auth, RBAC, reCAPTCHA, onboarding SDK, NiceModal, intro steps, toast, GlobalModal, and notification upgrade onboarding popup.
+- file_or_command: `src/features/BasicDepProvider/effects/useAuthEffect.ts:19-124`
+  - finding: Maps production/staging/testing marketing admin BFF URLs and registers GraphQL `default`, `v1`, and `v2` clients with organization/connection/product/env/account/auth headers.
+- file_or_command: `codegen.yml:3-18`
+  - finding: GraphQL v1 schema points to `localhost:9003/marketing/admin/graphql`; v2 schema points to `localhost:9006/marketing/admin/v2/graphql`.
+- file_or_command: `src/business/hooks/useNotificationConfigUtils.ts:13-42`
+  - finding: Provides notification config query/mutation helpers gated to `productCode === 'aftership'`.
+- file_or_command: `src/business/hooks/useNotificationUpgradeUtils.ts:15-77`
+  - finding: Provides migration eligibility/schedule/upgrade/suspend helpers and stores SMS enabled/disabled status.
+- file_or_command: `src/components/Selectors/hooks/useGetFlowsAndTemplates.ts:41-130`
+  - finding: Fetches public flows and default content variants by flow/action identities; maps flow/template options and disables unapproved templates.
+- file_or_command: `src/graphql/v2/queries/contentVariant/getDefaultContentsByFlowAndActionIdentities.graphql`
+  - finding: Template query includes SMS template fields and multiple email editor body variants (`easy_email`, `dnd_email`, `html_email`, `safe_html_email`, `advanced_email`).
+- file_or_command: `src/graphql/v2/fragment/notificationConfig.graphql`
+  - finding: Notification config fragment includes email, messenger, SMS, and free SMS trigger groups.
+- file_or_command: `src/hooks/useFetchNotificationRule.ts:9-58`
+  - finding: Calls notification-center public API `/sale-rule-runs` with `sale_rule_group_id` and `as-cxp-product-code`.
+- file_or_command: `src/features/CommonSettings/CommonRoutes.tsx:23-110`
+  - finding: Defines common settings routes and SMS compliance child slot.
+- file_or_command: `src/features/CommonSettings/constants.tsx:26-184`
+  - finding: Settings map covers email/aftership product settings, including SMS, WhatsApp, billing, email sender info, custom fonts, merge tags, product documents, and account settings.
+- file_or_command: `src/hooks/dynamicSchema/useRenderDynamicFormV2.ts:1-103`
+  - finding: Uses BFF dynamic schema and `@aftership/am-dynamic-form` to render dynamic forms.
+- file_or_command: `src/hooks/dynamicSchema/useRenderMultiFilterV2.ts:1-215`
+  - finding: Uses BFF multi-filter config, `@aftership/am-filters`, billing feature availability, and product list fetching to render filters.
+- file_or_command: `src/features/HOC/NavigationAdaptorHOC/index.tsx`
+  - finding: Consumes `AftershipNavigation` and `@aftership/admin-host-runtime` to hide/restore top bar, billing banner, and left nav.
+- file_or_command: `build/mf-manifest.json`
+  - finding: Build artifact currently names `admin_marketing_basic` and buildVersion `1.5.50`, which differs from source config/package; likely stale or branch-build artifact.
+
+## Open Questions
+- question: Which exact host repos consume each exposed MF module today?
+  - why it matters: Source exposes are clear, but downstream ownership should be verified from consuming repos before writing shared project-map edges.
+- question: Should `notificationBilling` be mapped conclusively to `sdks.am-static.com_admin-marketing-billing`?
+  - why it matters: Package/remote names strongly suggest it, but a consuming repo or remote manifest would make the dependency fact stronger.
+- question: Should marketing admin BFF v1/v2 map to `bff-api.automizely.com_marketing_admin` and `bff-api.automizely.com_marketing_admin_v2` respectively?
+  - why it matters: URL/codegen evidence shows BFF endpoints, but exact repo split needs BFF repo confirmation.
+- question: Is `origin/feat/legacy-polaris-v9` an intended legacy branch track replacement for absent `master_v9`?
+  - why it matters: Protocol only names `master_v9`; using the feature branch as a maintenance base would need team confirmation.
+- question: Should tracked `build/mf-manifest.json` be considered stale and ignored for project-map facts?
+  - why it matters: It conflicts with source MF name/version; using generated artifact evidence could produce wrong module identity.
+- question: Should this checkout's remotes be repaired later to fork-first naming (`origin` fork, `upstream` AfterShip)?
+  - why it matters: Read-only research is unaffected, but future code edits/PR workflow should not proceed from the current remote layout without explicit repair.

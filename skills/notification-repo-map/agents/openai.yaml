@@ -1,0 +1,7 @@
+interface:
+  display_name: "Notification Repo Map"
+  short_description: "通知/邮件多仓项目地图与 fork-first 工作流"
+  default_prompt: "Use $notification-repo-map to locate the repos and branch tracks for a notification or email change."
+
+policy:
+  allow_implicit_invocation: true

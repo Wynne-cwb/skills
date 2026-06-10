@@ -1,0 +1,209 @@
+# subscription.as-list.com
+
+## Summary
+- project_id: `subscription.as-list.com`
+- repo_name: `subscription.as-list.com`
+- upstream_url: `https://github.com/AfterShip/subscription.as-list.com`
+- local_path: `/Users/wb.chen/Documents/AfterShip/subscription.as-list.com`
+- repo_type: Standalone React 17 + Webpack static frontend for customer-facing subscription/preference/unsubscribe, double opt-in, shipment review, and link-expired landing pages.
+- confidence: High for this repo's frontend responsibilities, routes, BFF calls, build/deploy identity, and branch refs inspected locally/remotely through git; medium for exact email/SMS unsubscribe-link generation ownership because this checkout consumes tokenized URLs but does not generate the final notification/email links.
+
+## Responsibility
+- Owns:
+  - Public landing-page UI under `subscription.as-list.com` / `subscription.as-list.io`.
+  - Email marketing preference/unsubscribe/resubscribe page at `/email-preferences`.
+  - SMS marketing preference/unsubscribe/resubscribe page at `/sms-preferences`.
+  - Email double opt-in confirmation page at `/email-confirm-subscription`.
+  - SMS double opt-in confirmation page at `/sms-confirm-subscription`.
+  - Shipment review form and feedback pages at `/review-form` and `/review-feedback`.
+  - Test-link expired page at `/link-expired`.
+  - Browser-side GraphQL client setup for `bff-api.automizely.com/marketing/public/graphql`.
+- Does not own:
+  - The marketing public BFF GraphQL schema/resolvers; this app calls that BFF.
+  - Subscription backend state, token extraction, preference persistence, or confirmed opt-in handling; those are behind public BFF -> `SUBSCRIPTION_API_PREFIX`.
+  - Marketing/admin BFF workflows, admin notification history, resubscribe email template management, or unsubscribe analytics.
+  - Email/SMS rendering, delivery, or final merge-tag replacement for `*|UNSUBSCRIBE_URL|*`.
+  - Module Federation host/remote ownership.
+  - Legacy `marketing.automizely.com/public/subscriptions/emails/unsubscribe/index.html` static unsubscribe page.
+- Common change areas:
+  - `src/Routes.tsx` for customer-facing route additions/removals.
+  - `src/pages/EmailUnsubscribe/*`, `src/pages/SmsUnsubscribe/*`, and `src/pages/ConfirmSubscription/*` for subscription/preference UX.
+  - `src/graphql/amPublic/**` for public BFF GraphQL documents.
+  - `src/utils/graphql.ts` for public BFF host mapping and request headers.
+  - `config/constants/domain.js`, `config/utils/path.js`, and `config/scripts/upload-assets.js` for domain/publicPath/static asset deployment.
+
+## Branch Tracks
+- production: `master` exists locally and in local remote-tracking refs (`master`, `origin/master`, `upstream/master`). `git ls-remote --heads upstream master ...` also returned upstream `refs/heads/master`.
+- legacy_v9: `master_v9` was not found in local refs or in the checked upstream candidate heads.
+- active_major: `feat/flow-v3` exists in upstream heads from `git ls-remote`; `feat/flow-v3-polaris-v13` was not found. No local remote-tracking ref for `feat/flow-v3` was present, so a fetch would be needed before basing work on it.
+- repo_specific_notes:
+  - Current checkout was `master`.
+  - Remotes are fork-first shaped: `origin` is `git@github.com:Wynne-cwb/subscription.as-list.com.git`; `upstream` is `git@github.com:AfterShip/subscription.as-list.com.git`.
+  - Local refs were stale/divergent for upstream: local `upstream/master` was `5e0678a`, while `git ls-remote` showed upstream `master` at `194e9138`; do not rely on local `upstream/master` without fetching before future edits.
+  - PR check accepts targets `feat/*`, `hotfix/*`, `release/*`, `testing`, `staging`, `master`, and `publish`; SonarQube workflow targets PRs into `staging` and `master`.
+
+## Module Federation
+- enabled: false.
+- exposes: none found.
+- remotes: none found.
+- shared_packages: Not applicable for Module Federation. The app uses ordinary React/Webpack bundling plus shared npm packages such as `@aftership/automizely-frontend-dev-kit` and `@aftership/deploy-frontend-assets`.
+- branch_alignment: Not an MF remote/host. `feat/flow-v3` exists upstream, but this repo's current source is a standalone static frontend; align by task target (`master` for production fixes, `feat/flow-v3` if specifically required by flow-v3 work).
+
+## Team Repo Dependencies
+- Direct dependencies:
+  - `@aftership/automizely-frontend-dev-kit`: used for GraphQL fetch registration and generated hooks.
+  - `@aftership/deploy-frontend-assets`: used by `config/scripts/upload-assets.js` to publish built static assets.
+  - No direct package dependency on `bff-api.automizely.com_marketing_public`, admin BFF repos, notification UI repos, or email-renderer repos was found in `package.json`.
+- Runtime calls:
+  - Direct browser runtime call: `bff-api.automizely.com_marketing_public` GraphQL at `/marketing/public/graphql` (production `https://bff-api.automizely.com/marketing/public/graphql`, staging/testing variants, and local `http://localhost:9002/marketing/public/graphql`).
+  - Through public BFF: email preference token extraction/update and email double opt-in call subscription internal endpoints under `/subscription/internal/email-preferences` and `/subscription/internal/subscriptions/handle-confirmed-opt-in.action`.
+  - Through public BFF: SMS preference token extraction/update and SMS double opt-in call subscription internal endpoints under `/subscription/internal/sms-preferences` and `/subscription/internal/subscriptions/handle-sms-confirmed-opt-in.action`.
+  - Through public BFF: shipment review flow calls BTP reviews, translation, and related public BFF downstream services.
+  - No direct runtime call from this app to marketing admin or marketing admin v2 BFF was found.
+- Build-time dependencies:
+  - `codegen.yml` points GraphQL codegen at `http://localhost:9002/marketing/public/graphql` and documents under `src/graphql/**/*.graphql`.
+  - `devkit.config.js` tells the AfterShip frontend dev kit hooks generator to use `src/generated/graphql.ts`.
+  - Jenkins identifies this as frontend app `subscription.as-list.com` with Node `16.16.0`, staging and production enabled.
+- Shared packages:
+  - `@aftership/automizely-frontend-dev-kit`
+  - `@aftership/deploy-frontend-assets`
+  - `@shopify/polaris` / `@shopify/polaris-icons` are UI framework dependencies, not team repo dependencies.
+- Inferred but unconfirmed:
+  - Final email/SMS unsubscribe URLs are likely generated by backend notification/subscription/rendering systems using tokens and then land on this app's `/email-preferences` or `/sms-preferences`, but this repo only consumes `t`, `v`, and `u` query params; it does not generate those links.
+  - `sdks.am-static.com_admin-email` proves review-form URL construction and unsubscribe merge-tag usage, while `product.automizelyapi.com_email-renderer` proves `*|UNSUBSCRIBE_URL|*` placeholders are rendered; neither proves the final subscription preference URL generation owner.
+  - The exact GitHub repo behind `prod-oc-subscription.as-in.com` is not proven from this checkout.
+
+## Business Flows
+- flow_id: `email_subscription_preference`
+  - role: `/email-preferences` decodes `t` token and `v` version, fetches `extractEmailSubscriptionToken`, shows current `accept_email_marketing`, and mutates `updateEmailSubscription` to `unsubscribed` or `subscribed`.
+  - upstream/downstream repos: Upstream links from email/notification systems are inferred; downstream is `bff-api.automizely.com_marketing_public` -> subscription internal email-preferences API.
+- flow_id: `sms_subscription_preference`
+  - role: `/sms-preferences` mirrors email preference behavior for `accept_sms_marketing` through `extractSMSSubscriptionToken` and `updateSMSSubscription`.
+  - upstream/downstream repos: Upstream links from SMS/notification systems are inferred; downstream is `bff-api.automizely.com_marketing_public` -> subscription internal sms-preferences API.
+- flow_id: `email_double_opt_in`
+  - role: `/email-confirm-subscription` decodes `t`/`v`, calls `updateEmailDoubleOptInSubscription`, and renders BFF-provided landing-page title/description or default success/failure states. `tm=1` bypasses mutation for test email display.
+  - upstream/downstream repos: Email links from notification/email systems -> this repo -> public BFF -> subscription confirmed opt-in API and store common settings for landing-page content.
+- flow_id: `sms_double_opt_in`
+  - role: `/sms-confirm-subscription` calls `updateSmsDoubleOptInSubscription` and reuses shared confirmation UI.
+  - upstream/downstream repos: SMS links from notification systems -> this repo -> public BFF -> SMS confirmed opt-in API and store common settings.
+- flow_id: `shipment_review_from_email`
+  - role: `/review-form` reads `tracking_id`, `language_tag`, `rating`, `detail_comment`, and optional base64 form settings; it creates BTP reviews with `source: 'email'`, then redirects to `/review-feedback`. Feedback text is translated through public BFF.
+  - upstream/downstream repos: `sdks.am-static.com_admin-email` builds `https://${subscriptionDomain}/review-form` URLs for shipment review blocks; this repo calls public BFF `btpReviews`, `createBtpReviews`, and `translateLanguage`.
+- flow_id: `test_link_expired`
+  - role: `/link-expired` displays a static "Link expired" message for expired test email links.
+  - upstream/downstream repos: Upstream link owner is not proven; no downstream API call in this page.
+- flow_id: `admin_resubscribe_related_but_not_page_host`
+  - role: Marketing admin v2 BFF has GraphQL operations for resubscribe email template, send resubscribe email, SMS resubscribe method, and unsubscribe analytics; this is related subscription/admin workflow evidence but not a direct route or runtime dependency of this landing app.
+  - upstream/downstream repos: `bff-api.automizely.com_marketing_admin_v2` -> `subscription_api` (`prod-oc-subscription`) and data-DMS unsubscribe stats; no direct call from `subscription.as-list.com`.
+
+## Important Entrypoints
+- path: `package.json`
+  - why it matters: Defines package name/description, React/Webpack scripts, codegen/test/upload commands, and AfterShip dev-kit/deploy-assets dependencies.
+- path: `src/index.tsx`
+  - why it matters: Browser bootstrap; calls `initGraphqlFetch()` before rendering the React app.
+- path: `src/Routes.tsx`
+  - why it matters: Authoritative public route map for email/SMS preferences, confirm subscription pages, shipment review pages, and link-expired page.
+- path: `src/utils/graphql.ts`
+  - why it matters: Maps app environment to marketing public BFF host and registers GraphQL fetch instance with `am-product-code: email`.
+- path: `src/pages/EmailUnsubscribe/EmailUnsubscribe.tsx`
+  - why it matters: Implements email token extraction, unsubscribe/resubscribe mutations, member-user block (`u=m`), idempotent success handling for code `42202`, and end-user status UI.
+- path: `src/pages/SmsUnsubscribe/SmsUnsubscribe.tsx`
+  - why it matters: Implements SMS token extraction, unsubscribe/resubscribe mutations, member-user block, idempotent success handling for code `42203`, and end-user status UI.
+- path: `src/pages/ConfirmSubscription/*`
+  - why it matters: Shared double opt-in confirmation behavior for email/SMS and test email mode (`tm=1`).
+- path: `src/pages/ReviewForm/*`, `src/pages/ReviewFeedBack/*`
+  - why it matters: Shipment review link landing flow, BTP review creation, and translated feedback messaging.
+- path: `src/graphql/amPublic/**`
+  - why it matters: All public BFF GraphQL documents consumed by this app.
+- path: `config/constants/domain.js`, `config/utils/path.js`
+  - why it matters: Domain/publicPath mapping for production, staging, testing, and release environments.
+- path: `config/webpack/*.js`
+  - why it matters: Confirms standalone Webpack static app build; no Module Federation exposes/remotes.
+- path: `Jenkinsfile`, `.github/workflows/*.yaml`
+  - why it matters: CI/deploy identity, Node version, environment support, and PR target policies.
+
+## Evidence
+- file_or_command: `/Users/wb.chen/Documents/Project/skills/NOTIFICATION_REPO_MAP_RESEARCH.md`
+  - finding: Confirmed required Per-Repo Research Output Schema, branch-track rules, evidence rules, and read-only protocol.
+- file_or_command: `/Users/wb.chen/Documents/Project/skills/repo-research/INDEX.md`
+  - finding: `subscription.as-list.com` was `pending`, report file did not exist, and no active subagent owned it.
+- file_or_command: `git -C /Users/wb.chen/Documents/AfterShip/subscription.as-list.com remote -v`
+  - finding: `origin` is the user's fork and `upstream` is `AfterShip/subscription.as-list.com`.
+- file_or_command: `git ... for-each-ref ...`; `git ... ls-remote --heads upstream master master_v9 feat/flow-v3-polaris-v13 feat/flow-v3`
+  - finding: Local refs include `master`, `origin/master`, `upstream/master`; upstream candidate heads include `master` and `feat/flow-v3`; no `master_v9` or `feat/flow-v3-polaris-v13`.
+- file_or_command: `package.json:2-16,49-51`
+  - finding: Package is `subscription.as-list.com`, description "all in one subscription", with build/codegen/upload scripts and AfterShip dev-kit/deploy-assets dependencies.
+- file_or_command: `README.md:1`
+  - finding: Describes the app as "all in one subscription page".
+- file_or_command: `src/Routes.tsx:33-59`
+  - finding: Routes are `/email-preferences`, `/sms-preferences`, `/review-form`, `/review-feedback`, `/email-confirm-subscription`, `/sms-confirm-subscription`, and `/link-expired`.
+- file_or_command: `src/utils/graphql.ts:4-23`
+  - finding: Runtime GraphQL host maps to `bff-api.automizely.com/marketing/public` variants and registers `${host}/graphql`.
+- file_or_command: `codegen.yml:3-5`
+  - finding: GraphQL codegen schema is `http://localhost:9002/marketing/public/graphql`.
+- file_or_command: `src/graphql/amPublic/queries/emailPreference/extractEmailSubscriptionToken.graphql:1-20`
+  - finding: Email token query returns tenant scope, contact id, and `preferences.accept_email_marketing`.
+- file_or_command: `src/graphql/amPublic/mutation/emailPreference/updateEmailSubscription.graphql:1-21`
+  - finding: Email mutations update preference and handle double opt-in confirmation with landing-page content.
+- file_or_command: `src/graphql/amPublic/queries/smsPreference/extractSmsSubscriptionToken.graphql:1-20`
+  - finding: SMS token query returns tenant scope, contact id, and `preferences.accept_sms_marketing`.
+- file_or_command: `src/graphql/amPublic/mutation/smsPreference/updateSmsSubscription.graphql:1-21`
+  - finding: SMS mutations update preference and handle SMS double opt-in confirmation.
+- file_or_command: `src/pages/EmailUnsubscribe/EmailUnsubscribe.tsx:13-19,33-44,75-88,105-118,144-153`
+  - finding: Email page consumes `t`, `v`, `u`; extracts token; updates `accept_email_marketing`; blocks organization members (`u=m`).
+- file_or_command: `src/pages/SmsUnsubscribe/SmsUnsubscribe.tsx:13-19,33-44,75-89,106-119,145-154`
+  - finding: SMS page consumes the same token/version/user-type shape and updates `accept_sms_marketing`.
+- file_or_command: `src/pages/ConfirmSubscription/EmailConfirmSubscription.tsx:8-33`; `src/pages/ConfirmSubscription/SmsConfirmSubscription.tsx:8-33`
+  - finding: Email/SMS confirm pages call double opt-in mutations with token/version and treat success or specific code as success.
+- file_or_command: `src/pages/ConfirmSubscription/ConfirmSubscriptionPageContent.tsx:19-44,54-77,91-102`
+  - finding: Shared confirm UI decodes token, supports `tm=1` test mode, and renders BFF-provided title/description.
+- file_or_command: `src/pages/ReviewForm/hooks/useReviewForm.ts:13-23,26-41,61-69,84-96`
+  - finding: Review flow reads tracking/language/rating/comment query params, checks existing BTP reviews, creates review with `source: 'email'`, and redirects to feedback.
+- file_or_command: `src/pages/ReviewFeedBack/ReviewFeedBack.tsx:16-36`
+  - finding: Feedback page calls `translateLanguage` for localized success/already messages.
+- file_or_command: `src/graphql/amPublic/mutation/btpReviews/createBtpReviews.graphql`; `src/graphql/amPublic/queries/btpReviews/getBtpReviews.graphql`; `src/graphql/amPublic/mutation/translation/translationLanguage.graphql`
+  - finding: Public BFF documents cover BTP review create/read and translation.
+- file_or_command: `src/pages/LinkExpired/index.tsx:19-23`
+  - finding: Link-expired page message explicitly targets expired test email links.
+- file_or_command: `config/constants/domain.js:1-17`; `config/utils/path.js`
+  - finding: Static app serves from `subscription.as-list.com` and environment/release variants; publicPath uses these domains.
+- file_or_command: `config/webpack/webpack.base.config.js:6-77`; `config/webpack/webpack.build.config.js:8-16`
+  - finding: Webpack has single `main` entry, splitChunks, HtmlWebpackPlugin, and normal static output; no exposes/remotes.
+- file_or_command: `rg ... "ModuleFederationPlugin|ModuleFederation|remoteEntry|exposes\\s*:|remotes\\s*:|@module-federation" ...`
+  - finding: No Module Federation source/config/package matches. Only upload asset cache settings mention `__federation_*`, which is not evidence of this repo exposing/remoting MF modules.
+- file_or_command: `Jenkinsfile:5-21`
+  - finding: CI flow is `frontend`; app name and git repo name match `subscription.as-list.com`; Node `16.16.0`; staging and production are enabled.
+- file_or_command: `.github/workflows/pr-check.yaml:3-21`; `.github/workflows/sonarqube.yaml:3-16`
+  - finding: PR branch patterns and Sonar branch targets/Node version recorded.
+- file_or_command: `/Users/wb.chen/Documents/AfterShip/bff-api.automizely.com_marketing_public/src/app.ts:32-33`; `config/default.js:1-6`
+  - finding: Marketing public BFF mounts GraphQL at `/marketing/public/graphql`.
+- file_or_command: `/Users/wb.chen/Documents/AfterShip/bff-api.automizely.com_marketing_public/graphql/query.graphql:23-34`; `graphql/mutation.graphql:4-19`
+  - finding: Public BFF schema exposes the exact subscription, double opt-in, BTP review, and translation operations consumed here.
+- file_or_command: `/Users/wb.chen/Documents/AfterShip/bff-api.automizely.com_marketing_public/src/datasources/emailPreference/service.ts:23-35`; `src/datasources/smsPreference/service.ts:23-35`
+  - finding: Public BFF maps email/SMS preference and double opt-in operations to subscription internal endpoints.
+- file_or_command: `/Users/wb.chen/Documents/AfterShip/bff-api.automizely.com_marketing_public/config/production.js:20`
+  - finding: Public BFF `SUBSCRIPTION_API_PREFIX` points to `prod-oc-subscription.as-in.com/omnichannel/:version`.
+- file_or_command: `/Users/wb.chen/Documents/AfterShip/Notification/sdks.am-static.com_admin-email/src/constants/SubscriptionDomain.ts:1-43`
+  - finding: Admin email SDK has matching subscription domains and `getSubscriptionDomain()`.
+- file_or_command: `/Users/wb.chen/Documents/AfterShip/Notification/sdks.am-static.com_admin-email/src/features/DndEmailEditor/Editor/utils/emailToMjml.ts:76-83`; `src/features/EasyEmailEditor/PreBuildBlock/blocksData/shipmentReview/getShipmentReviewDataSource.ts:46-69`
+  - finding: Admin email SDK builds `https://${subscriptionDomain}/review-form` links for shipment review email blocks.
+- file_or_command: `/Users/wb.chen/Documents/AfterShip/Notification/sdks.am-static.com_admin-email/src/features/DndEmailEditor/Editor/blockManager/blocksData/constants.ts:1-4`; `src/features/HtmlEmailEditor/Previewer/index.tsx:47-52`
+  - finding: Admin email SDK uses `*|UNSUBSCRIBE_URL|*` and `*|UNSUBSCRIBE_BTN_TEXT|*` merge tags rather than hard-coding this app's preference routes.
+- file_or_command: `/Users/wb.chen/Documents/AfterShip/product.automizelyapi.com_email-renderer/src/worker/jobs/emailRender.worker.js:150-154`; `src/modules/migration/migration.service.ts:688-697`
+  - finding: Email renderer also consumes unsubscribe merge-tag placeholders, but does not prove final URL generation in this checkout.
+- file_or_command: `/Users/wb.chen/Documents/AfterShip/Notification/bff-api.automizely.com_marketing_admin_v2/src/datasources/subscription/subscription.api.service.ts:16-47`; `config/production.ts:158-160`
+  - finding: Admin v2 BFF calls subscription internal resubscribe endpoints via `subscription_api`, a related admin workflow rather than this landing app's runtime dependency.
+- file_or_command: `/Users/wb.chen/Documents/AfterShip/Notification/bff-api.automizely.com_marketing_admin_v2/src/datasources/dataDms/dataDms.api.service.ts:126-142`; `src/modules/analysis/flowData/flowData.service.ts:291-364`
+  - finding: Admin v2 BFF also consumes unsubscribe overview/detail stats for flow analytics.
+
+## Open Questions
+- question: Which backend repo definitively owns `prod-oc-subscription.as-in.com/omnichannel/:version` and final generation of email/SMS preference tokens/links?
+  - why it matters: This app and public BFF prove the landing and API path, but the token/link creation owner is outside this checkout.
+- question: Should future subscription/preference fixes target `master` or upstream `feat/flow-v3`?
+  - why it matters: `feat/flow-v3` exists upstream but was not fetched locally; the repo is not Module Federation, so branch choice should follow the product rollout target.
+- question: Is legacy `marketing.automizely.com/public/subscriptions/emails/unsubscribe/index.html` still live for any customers?
+  - why it matters: It appears to be an older static unsubscribe path separate from this app; migration boundary is not proven here.
+- question: Who routes expired test email links to `/link-expired`?
+  - why it matters: The page exists and text is clear, but the link generator/caller was not found in this repo.
+- question: Should SMS double opt-in success treat code `42202` or an SMS-specific code?
+  - why it matters: `SmsConfirmSubscription.tsx` checks `42202`, while SMS unsubscribe page uses `42203`; this may be intentional backend behavior or a small inconsistency requiring runtime confirmation.

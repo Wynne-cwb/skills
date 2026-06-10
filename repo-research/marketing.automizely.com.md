@@ -1,0 +1,227 @@
+# marketing.automizely.com
+
+## Summary
+- project_id: `marketing.automizely.com`
+- repo_name: `marketing.automizely.com`
+- upstream_url: `https://github.com/AfterShip/marketing.automizely.com`
+- local_path: `/Users/wb.chen/Documents/AfterShip/Automizely Marketing/marketing.automizely.com`
+- repo_type: React/TypeScript Marketing Admin frontend app; legacy standalone host for `marketing.automizely.com`; Module Federation remote `marketingAdmin` for Admin Host.
+- confidence: High for repo identity, entrypoints, branch refs, Module Federation config, BFF/API usage, and local route ownership. Medium for exact repo-name mapping behind some MF aliases because this checkout proves aliases/CDN paths, while GitHub repo identities come from sibling repo reports or naming inference.
+
+## Responsibility
+- Owns:
+  - Automizely/Marketing Admin UI composition for home, popups/forms, flows, emails/newsletters, SMS content/editor routes, coupons, conversions tools, contacts/segments, analytics, shopping, billing/settings, and recommendation admin entry.
+  - Legacy standalone Marketing Admin host at `marketing.automizely.com` / `marketing.automizely.io`, including auth provider bootstrapping, navigation frame, static build, SSO/OAuth/unsubscribe/preview HTML outputs, and client routing.
+  - Module Federation remote `marketingAdmin` with `remoteEntry.js`, exposing `.` -> `./src/mfIndex`; `src/mfIndex.ts` wraps `MFApp` with `@aftership/admin-host-runtime` `moduleFactory`.
+  - Host-level integration with notification remotes: billing/basic/coupon/SMS/CRM/analytics/email, AfterShip navigation/accounts/billing widgets, and perks.
+  - Legacy REST client layer for Conversions/Search/Shopping/Chats/Data/Messages/Postmen/Billing APIs through `src/utils/network.ts`, plus Apollo GraphQL client over Marketing Admin BFF.
+  - Local legacy feature implementations still present in this repo: flows, email/editor surfaces, popups, bars, social proof, sales boost, inactive/default tabs, shopping/mobile app pages, settings, and analytics wrappers.
+- Does not own:
+  - The new Admin Host shell itself (`admin.aftership.com/marketing`); this repo exposes an app module and adapts basename/navigation through `@aftership/admin-host-runtime`.
+  - Backend GraphQL schemas/resolvers or persistence. `codegen.yml` and `graphql.config.json` point to local Marketing Admin BFF schema `http://localhost:9003/marketing/admin/graphql`; runtime Apollo calls `MARKETING_BFF_ADMIN_API/graphql`.
+  - Marketing public BFF implementation; this repo only calls `MARKETING_BFF_PUBLISH_API` for public assets such as countdown rendering.
+  - Storefront/browser SDK behavior owned by `sdks.automizely.com_conversions`; this repo is the admin/config surface and legacy mock-service companion.
+  - SMS SDK, email SDK, coupon SDK, CRM SDK, billing SDK, analytics SDK, navigation/accounts widgets, or recommendation engine internals; those are consumed via MF remotes or npm packages.
+  - Platform Notification backend flow/message execution, email/SMS delivery, risk review services, and subscription systems.
+- Common change areas:
+  - Host/MF integration: `mf.config.js`, `craco.config.js`, `config/env.js`, `config/paths.js`, `src/mfIndex.ts`, `src/MFApp.tsx`, `src/App.tsx`, `src/utils/routes.ts`.
+  - Routing/product shell: `src/Routes.tsx`, `src/components/Frame/**`, `src/components/Navigation/**`, `src/store/index.ts`.
+  - BFF/API contracts: `src/graph/**`, `codegen.yml`, `graphql.config.json`, `src/graph/index.ts`, `src/utils/network.ts`.
+  - Feature areas: `src/views/flow/**`, `src/views/email/**`, `src/pages/EmailEditor/**`, `src/views/sms/**`, `src/pages/PopupEditor/**`, `src/views/recommendation/**`, `src/views/analytics/**`.
+
+## Branch Tracks
+- production: `upstream/master` exists. Local ref observed at `b1a3c7ecba61d18b8ef5a119c1fd9d85a431183c` with subject `Merge pull request #9761 from Wynne-cwb/hotfix/CVS-24952-rec-products-unclosed-anchor`.
+- legacy_v9: No `master_v9` ref was found in local or remote-tracking refs during targeted branch checks.
+- active_major: `upstream/feat/flow-v3` exists and is the protocol fallback active track because `upstream/feat/flow-v3-polaris-v13` was not found. Local ref observed at `47f8c76c9eb35e8bc6a85d2912512bad379b3faa` with subject `Merge pull request #9665 from feidom-up/feat/flow-v3`.
+- repo_specific_notes:
+  - Current checkout during research was `feat/data-retention...upstream/feat/data-retention [ahead 1, behind 6]`.
+  - Remotes are fork-first shaped: `origin` points to `git@github.com:Wynne-cwb/marketing.automizely.com.git`; `upstream` points to `git@github.com:AfterShip/marketing.automizely.com.git`.
+  - Environment/release branches exist (`testing`, `staging`, `release/core`, `release/incy`, `release/nike`, `release/pear`, `release/tidy`) and are reflected in `config/paths.js` and `config/env.js`.
+  - `upstream/master`/current config and `upstream/feat/flow-v3` both expose `marketingAdmin`, but their consumed remote aliases differ materially; see Module Federation branch alignment.
+
+## Module Federation
+- enabled: Yes. `craco.config.js` imports `ModuleFederationPlugin` from `@module-federation/enhanced/webpack`, calls `new ModuleFederationPlugin(getMFConfig())`, and adds `ASModuleFederationTypeScriptHostPlugin`.
+- exposes:
+  - Current checkout / `upstream/master`: `name: marketingAdmin`, `filename: remoteEntry.js`, `exposes: { ".": "./src/mfIndex" }`.
+  - `src/mfIndex.ts` exports `moduleFactory({ MainApp: MFApp })`, meaning the Admin Host loads `MFApp` rather than the standalone `realIndex.tsx`/`App.tsx` chain.
+- remotes:
+  - Current checkout / `upstream/master`: `perks`, `aftershipNavigationWidgets`, `aftershipAccountsWidgets`, `aftershipBillingWidgets`, `notificationBilling`, `notificationBasic`, `notificationCoupon`, `notificationSms`, `notificationCrm`, `notificationAnalytics`, `notificationEmail`.
+  - Current remote CDN subdirectories include `notification-billing`, `notification-basic`, `notification-coupon`, `notification-sms`, `notification-crm`, `notification-analytics`, and `notification-email`.
+  - `upstream/feat/flow-v3`: remote aliases differ: `oppApps`, `aftershipBillingWidgets`, `adminMarketingBilling`, `adminMarketingBasic`, `adminMarketingCoupon`, `adminSms`, `adminCrm`, `adminMarketingAnalytics`, `adminEmail`, and `aftershipNavigationWidgets`; several are pinned through `appEnv: release-incy` or `testing`.
+- shared_packages:
+  - Shared singleton/current config includes `react`, `react-dom`, `react-redux`, `react-router`, `react-router-dom`, `@aftership/automizely-product-auth`, `@aftership/aha`, `@aftership/aha-icons`, Shopify i18n/Polaris packages, `@aftership/automizely-frontend-dev-kit`, `formik`, `@emoji-mart/react`, `@emoji-mart/data`, `@aftership/growth-components`, `@aftership/meerkat-sdk`, `@aftership/datacat`, `@sentry/react`, `moment-timezone`, `react-joyride`, `react-i18next`, `i18next`, and `@aftership/automizely-billing-ui-react` as import-false singleton.
+- branch_alignment:
+  - Production/newer master-line Marketing Admin uses `notification*` aliases and CDN subdirectories.
+  - Active major `upstream/feat/flow-v3` still uses `adminMarketing*`/`adminSms`/`adminEmail` aliases in sampled `mf.config.js`; do not assume the same import names across branch tracks.
+  - `config/paths.js` supports both legacy Marketing Admin host URLs and MF Admin Host URLs. When `APP_NAME === "admin.aftership.com_marketing"`, public path resolves under `admin.aftership.* /marketing`; otherwise it resolves under `marketing.automizely.*`.
+
+## Team Repo Dependencies
+- Direct dependencies:
+  - `@aftership/admin-host-runtime`: MF module factory, Admin Host navigation update/mount, base path/history integration.
+  - `@aftership/automizely-product-auth`: standalone auth provider, auth token/org/connection headers, `useAuth` throughout feature code.
+  - `@aftership/datacat`: page/click/modal analytics through `Routes.tsx`, `saga/gtm/defaultPageView.ts`, `_utils/datacat/index.ts`, and feature code.
+  - `@aftership/am-filters`: segment/filter typing and rendering in flow triggers, segments, newsletter recipient filters, and dev filter tool.
+  - `@aftership/recommendation-admin-ts`: Recommendation admin UI surface under `/recommendations`.
+  - `@aftership/automizely-billing-ui-react`, `aftershipBillingWidgets`, and `notificationBilling/*`: billing provider/toasts/pages, feature locks, trials, upgrade UI.
+  - `@aftership/growth-components`, `@aftership/meerkat-sdk`, `@aftership/notification-center`, `@aftership/navigation`, AHA/AHA icons, and `@aftership/automizely-frontend-dev-kit` as shared platform/UI dependencies.
+  - Build/MF packages: `@module-federation/enhanced`, `@aftership/module-federation-typescript`, CRACO, GraphQL Code Generator, `am-kit-hooks-codegen`, and `@aftership/deploy-frontend-assets`.
+- Runtime calls:
+  - Marketing Admin BFF: Apollo client in `src/graph/index.ts` sends default operations to `${process.env.MARKETING_BFF_ADMIN_API}/graphql`; `config/env.js` maps it to `/marketing/admin` (`localhost:9003` in development, `bff-api.automizely.*` in testing/staging/production).
+  - Recommendation BFF: operations with context `app === "recommendation"` go to `${process.env.RECOMMENDATION_API_PREFIX}/graphql`; `config/env.js` maps it to `/recommendation/admin`.
+  - Marketing public BFF: `MARKETING_BFF_PUBLISH_API` maps to `/marketing/public`; direct source use found in email preview countdown image URL `${MARKETING_BFF_PUBLISH_API}/getCountdown/${hashText}`.
+  - Legacy Conversions REST: `src/utils/network.ts` creates `callApi`, `callDefaultSegmentsApi`, `callBarsApi`, and `callEmailsApi` at `${CONVERSIONS_API}/v1/bff`; many `src/store/**` and `src/saga/**` resources still call those clients.
+  - Other legacy/product APIs: `src/utils/network.ts` creates clients for Search (`SEARCH_API/v1`), Shopping (`SHOPPING_API/v1`), Chats (`CHAT_API/v1`), Data (`DATA_API/conversions/v1`), Messages (`MESSAGES_API/jwt`), Postmen (`POSTMEN_API/v4/me`), and Billing (`BILLING_API/v2`).
+  - Messages app legacy integration: `src/apps/messagesApp.ts` loads `${MESSAGES_APP}/static/js/spaEntry.js` and passes messages/postmen/conversions API clients as `single-spa` custom props for `/webpush` and `/settings/brand`, although current routes redirect several webpush/settings paths back to home.
+  - Conversions/Admin host URL relation: `config/paths.js` maps legacy host domains (`marketing.automizely.*`) and MF admin host domains (`admin.aftership.*/marketing`); `src/MFApp.tsx` and `src/App.tsx` pass `CONVERSIONS_HOST` into `GrowthProvider`.
+  - Module Federation runtime calls: local source imports `notificationBasic`, `notificationBilling`, `notificationCoupon`, `notificationSms`, `notificationCrm`, `notificationAnalytics`, `notificationEmail`, `aftershipBillingWidgets`, `aftershipNavigationWidgets`, and `perks` remote modules.
+- Build-time dependencies:
+  - `README.md` says local development requires pulling and running `bff-api.automizely.com_marketing_admin` before starting Marketing Admin.
+  - `codegen.yml` and `graphql.config.json` use schema `http://localhost:9003/marketing/admin/graphql` and documents under `src/graph/**/*.graphql`.
+  - `Jenkinsfile` identifies app/repo as `marketing.automizely.com`, frontend flow, Node 16.16.0 essential image, staging/production enabled, and unit test command `yarn tsc`.
+  - CRACO build emits multiple HTML entries for app, popup/banner/subscription previews, screenshot pages, SSO authorize/logout, WooCommerce OAuth, and email unsubscribe.
+- Shared packages:
+  - Auth/platform: `@aftership/admin-host-runtime`, `@aftership/automizely-product-auth`, `@aftership/automizely-frontend-dev-kit`.
+  - UI/design: AHA/AHA icons, legacy Material/Polaris-related packages, Shopify i18n/App Bridge, growth components.
+  - Analytics/telemetry: `@aftership/datacat`, Sentry, GTM/Pendo/Crisp config.
+  - Business modules: billing widgets, notification billing/basic/coupon/SMS/CRM/analytics/email remotes, `@aftership/recommendation-admin-ts`, `@aftership/am-filters`.
+- Inferred but unconfirmed:
+  - Current `notificationBilling`, `notificationBasic`, `notificationCoupon`, `notificationSms`, `notificationCrm`, `notificationAnalytics`, and `notificationEmail` aliases likely map to notification-era SDK repos such as `sdks.am-static.com_admin-marketing-billing`, `sdks.am-static.com_admin-marketing-basic`, `sdks.am-static.com_admin-marketing-coupon`, `sdks.am-static.com_admin-sms`, `sdks.am-static.com_admin-crm`, `sdks.am-static.com_admin-marketing-data`, and `sdks.am-static.com_admin-email`; this checkout itself proves aliases and CDN subdirectories, while sibling repo reports provide stronger mapping for SMS/email/public BFF.
+  - This repo directly uses `/marketing/admin/graphql` rather than `/marketing/admin/v2/graphql`; relation to `bff-api.automizely.com_marketing_admin_v2` appears indirect through notification SDK remotes and future/active flow-v3 work, not through this checkout's own Apollo client.
+  - `notificationAnalytics` CDN subdirectory is `notification-analytics`; repo queue/report naming around `sdks.am-static.com_admin-marketing-data` vs analytics remote should be confirmed before encoding a stable repo edge.
+
+## Business Flows
+- flow_id: `marketing_admin_shell`
+  - role: Provides the Marketing Admin app shell and route graph for both standalone legacy host and MF Admin Host embedding. It manages auth, Redux/Saga/Apollo providers, navigation, billing provider, onboarding, toasts, KYC, and route guards.
+  - upstream/downstream repos: Upstream/new shell is Admin Host via `@aftership/admin-host-runtime`; downstream UI modules include local pages plus notification/billing/navigation MF remotes.
+- flow_id: `marketing_admin_bff_graphql`
+  - role: Main GraphQL client for admin data. It attaches auth/org/app headers, persisted query link, retry/error handling, and routes operations to Marketing Admin BFF or Recommendation BFF.
+  - upstream/downstream repos: Downstream `bff-api.automizely.com_marketing_admin`-line endpoint `/marketing/admin/graphql`; recommendation admin BFF for `app === "recommendation"`.
+- flow_id: `module_federation_marketing_admin`
+  - role: Exposes Marketing Admin itself as `marketingAdmin` remote while consuming notification, billing, navigation, accounts, perks, and feature SDK remotes.
+  - upstream/downstream repos: Upstream consumer is Admin Host; downstream remotes are notification billing/basic/coupon/SMS/CRM/analytics/email, AfterShip billing/navigation/accounts widgets, perks.
+- flow_id: `flows_email_sms_admin`
+  - role: Local route graph covers flows, flow editor/report, email list/editor/templates/newsletters/content editor, and SMS content editor; some SMS newsletter routes are delegated to `notificationSms/businessPage`, while analytics reports use `notificationAnalytics`.
+  - upstream/downstream repos: Downstream Marketing Admin BFF, notification SMS/email/basic/billing/coupon/analytics remotes, legacy Conversions REST clients, and email/SMS delivery services through BFF.
+- flow_id: `conversions_tools_admin`
+  - role: Admin/config UI for popups/forms, tabs, bars, sales boosts, social proof, search redirects, shopping/mobile app, store connections, and related conversion tooling.
+  - upstream/downstream repos: Downstream legacy Conversions REST `CONVERSIONS_API/v1/bff`, Shopping/Search/Data APIs, Marketing public BFF for public countdown image generation, and storefront SDK repo `sdks.automizely.com_conversions` as downstream runtime consumer of configured data.
+- flow_id: `contacts_segments_crm`
+  - role: Contacts/segments routes partly delegate to `notificationCrm/contacts` and `notificationCrm/segments`, while older local stores and GraphQL files remain for contacts/search/filter counts.
+  - upstream/downstream repos: Downstream CRM remote, Marketing Admin BFF, `@aftership/am-filters`, and notification basic filter hooks/components.
+- flow_id: `analytics_tracking`
+  - role: Pageview/click/modal tracking through Datacat/GTM and analytics pages for popup/forms, contacts, email, SMS, and reports. Some pages are local wrappers over `notificationAnalytics/businessComponents`.
+  - upstream/downstream repos: Downstream `@aftership/datacat`, notification analytics remote, Marketing Admin BFF analytics GraphQL, and legacy Data API clients.
+- flow_id: `recommendation_admin`
+  - role: Recommendation admin route wraps `@aftership/recommendation-admin-ts` with auth headers, billing gates, onboarding/top banners, navigation popups/callouts, Datacat callbacks, and Shopify connection checks.
+  - upstream/downstream repos: Downstream recommendation admin BFF, `@aftership/recommendation-admin-ts`, notification billing, navigation widgets, and Conversions/Shopify connection context.
+- flow_id: `messages_legacy_webpush`
+  - role: Legacy single-spa messages app loader exists for webpush/settings-brand paths and passes messages/postmen/conversions API clients, but current `Routes.tsx` redirects several webpush/search/settings-brand paths to home.
+  - upstream/downstream repos: Downstream Messages app/API, Postmen API, Conversions API; status of active user-facing route needs confirmation.
+
+## Important Entrypoints
+- path: `package.json`
+  - why it matters: Defines project name, CRACO scripts, static serve, GraphQL codegen, test/lint commands, and all direct platform/team package dependencies.
+- path: `README.md`
+  - why it matters: Documents source layout and explicitly states local development requires `bff-api.automizely.com_marketing_admin` BFF running before Marketing Admin.
+- path: `src/index.js` and `src/realIndex.tsx`
+  - why it matters: Standalone legacy host entry. `src/index.js` imports `realIndex`; `realIndex.tsx` creates React root, wraps `App` with `AuthProvider`/`TestProvider`, and configures `clientId: conversions`, `realm: business`, org/connection refresh, and app exclusions.
+- path: `src/App.tsx`
+  - why it matters: Standalone app composition. It initializes Sentry, uses `AftershipNavigation`, billing provider, Redux store, router, frame, routes, toasts, onboarding, KYC, and GrowthProvider.
+- path: `src/mfIndex.ts` and `src/MFApp.tsx`
+  - why it matters: Module Federation entry consumed by Admin Host. `MFApp` uses `updateNavigation`/`mountNavigationWidgets`, omits standalone AuthProvider, and adapts to host-provided navigation/runtime.
+- path: `mf.config.js`
+  - why it matters: Defines MF identity `marketingAdmin`, `remoteEntry.js`, exposed module, remote aliases/CDN helpers, runtime plugin, and shared singleton package contract.
+- path: `craco.config.js`
+  - why it matters: Webpack/CRACO customization: public path, multiple entries/HTML outputs, Module Federation plugin, MF TypeScript host plugin, CSP, code splitting, SWC loader, Sentry/source maps, dev server behavior.
+- path: `config/env.js`
+  - why it matters: Central environment map for Conversions/Search/Shopping/Chats/Data/Messages/Billing/Postmen APIs, Marketing public/admin BFFs, Recommendation BFF, MF CDN domains, messages app, admin/org/account domains, Sentry/GTM/Pendo/Crisp/CSP variables.
+- path: `config/paths.js`
+  - why it matters: Maps legacy Marketing Admin host URLs and MF Admin Host URLs; controls `PUBLIC_URL`, served path, app entry, preview/screenshot/SSO/OAuth/unsubscribe HTML paths.
+- path: `src/utils/routes.ts`
+  - why it matters: Detects Admin Host runtime/hostname, chooses `/marketing` basename, and avoids double-prefixing routes when embedded in Admin Host.
+- path: `src/Routes.tsx`
+  - why it matters: Primary route graph and business-module wiring. Shows local routes, MF imports, WooCommerce/subscription guards, analytics tracking hooks, billing providers, and redirects.
+- path: `src/graph/index.ts`, `codegen.yml`, `graphql.config.json`
+  - why it matters: Apollo client/BFF contract. Runtime points to `MARKETING_BFF_ADMIN_API/graphql`; codegen schema is `http://localhost:9003/marketing/admin/graphql`.
+- path: `src/utils/network.ts`
+  - why it matters: Legacy REST client factory and all non-GraphQL API base URLs, with auth/org/app headers from `automizely-product-auth`.
+- path: `src/typings/mf-remotes.d.ts`
+  - why it matters: Declares consumed MF remote module surfaces for notification CRM/analytics/basic/coupon/billing/SMS and billing widgets.
+- path: `src/store/index.ts`
+  - why it matters: Redux/history setup, legacy saga-resource stores, shopping/chats resources, and `provideAppHistory(AppCodeMap.conversions, history)` for Admin Host integration.
+- path: `src/views/recommendation/RecommendationList/index.tsx`
+  - why it matters: Concrete Recommendation admin integration using `@aftership/recommendation-admin-ts`, notification billing, navigation widgets, Datacat callbacks, and auth info.
+- path: `src/apps/messagesApp.ts`
+  - why it matters: Legacy single-spa Messages app loader and API-client handoff.
+- path: `server/index.js`
+  - why it matters: Static build server for `build/<servedPath>/index.html` on port `3323`.
+- path: `Jenkinsfile`
+  - why it matters: CI/deployment identity for frontend app `marketing.automizely.com`, repo name, Node image, staging/production support, and unit test command.
+
+## Evidence
+- file_or_command: `sed -n '1,260p' /Users/wb.chen/Documents/Project/skills/NOTIFICATION_REPO_MAP_RESEARCH.md`
+  - finding: Confirmed required Per-Repo Research Output Schema, branch-track rules, evidence rules, and read-only protocol.
+- file_or_command: `git -C ... remote -v`
+  - finding: `origin` is `git@github.com:Wynne-cwb/marketing.automizely.com.git`; `upstream` is `git@github.com:AfterShip/marketing.automizely.com.git`.
+- file_or_command: `git -C ... branch -a --list`
+  - finding: Found `upstream/master`, `upstream/feat/flow-v3`, `upstream/feat/aio-notification`, `upstream/feat/as-mf-ts`, environment/release refs, and no `master_v9` or `feat/flow-v3-polaris-v13` refs.
+- file_or_command: `git -C ... status --short --branch`
+  - finding: Current checkout was `feat/data-retention...upstream/feat/data-retention [ahead 1, behind 6]`.
+- file_or_command: `git -C ... log -1 --format='%H %D %s' upstream/master`; `git -C ... log -1 --format='%H %D %s' upstream/feat/flow-v3`
+  - finding: `upstream/master` at `b1a3c7e...`; `upstream/feat/flow-v3` at `47f8c76...`.
+- file_or_command: `package.json`
+  - finding: Project name is `marketing.automizely.com`; scripts use CRACO port `3323`, `build`, `serve`, `codegen`; dependencies include admin-host-runtime, automizely-product-auth, datacat, am-filters, recommendation-admin-ts, MF/runtime packages, billing/growth/navigation-related packages.
+- file_or_command: `README.md`
+  - finding: Describes src structure and states Marketing Admin local start requires running `bff-api.automizely.com_marketing_admin` BFF first.
+- file_or_command: `mf.config.js`
+  - finding: Current config defines `name: marketingAdmin`, `filename: remoteEntry.js`, exposes `.` -> `./src/mfIndex`, and consumes `notification*` plus navigation/accounts/billing/perks remotes.
+- file_or_command: `git show upstream/master:mf.config.js`
+  - finding: `upstream/master` has the same `marketingAdmin` remote identity and `notification*` remotes as current sampled config.
+- file_or_command: `git show upstream/feat/flow-v3:mf.config.js`
+  - finding: Active major branch still uses `adminMarketingBilling`, `adminMarketingBasic`, `adminMarketingCoupon`, `adminSms`, `adminCrm`, `adminMarketingAnalytics`, `adminEmail`, `oppApps`, and `aftershipNavigationWidgets` remote aliases.
+- file_or_command: `craco.config.js`
+  - finding: Installs Module Federation and TypeScript host plugins, builds multiple HTML entrypoints, sets publicPath from env/paths, and wires CSP/DefinePlugin/Sentry sourcemaps.
+- file_or_command: `config/paths.js`
+  - finding: Defines legacy `AdminHostMapping` (`marketing.automizely.*`) and `MFAdminHostMapping` (`admin.aftership.*/marketing`); `APP_NAME === admin.aftership.com_marketing` chooses MF Admin Host URLs.
+- file_or_command: `config/env.js`
+  - finding: Maps `MARKETING_BFF_ADMIN_API` to `/marketing/admin`, `MARKETING_BFF_PUBLISH_API` to `/marketing/public`, `RECOMMENDATION_API_PREFIX` to `/recommendation/admin`, and defines Conversions/Search/Shopping/Chats/Data/Messages/Billing/Postmen host variables plus MF CDN helpers.
+- file_or_command: `src/index.js`, `src/realIndex.tsx`
+  - finding: Standalone entry imports `realIndex`; `realIndex` wraps `App` in `AuthProvider` or `TestProvider` with `clientId: conversions`, `realm: business`, and app/connection config.
+- file_or_command: `src/mfIndex.ts`, `src/MFApp.tsx`
+  - finding: MF entry exports `moduleFactory({ MainApp: App })`; `MFApp` uses Admin Host runtime navigation hooks and mounts navigation widgets without standalone auth provider.
+- file_or_command: `src/App.tsx`
+  - finding: Standalone composition uses `AftershipNavigation`, `BillingProviderV2`, `BasicDependenciesProvider`, Redux router, GrowthProvider, `Routes`, billing toasts, onboarding, KYC, and Sentry user/org setup.
+- file_or_command: `src/utils/routes.ts`
+  - finding: Detects Admin Host runtime/hostname and returns Admin Host base path `/marketing`; otherwise uses `SERVED_PATH`.
+- file_or_command: `src/Routes.tsx`
+  - finding: Route graph covers Marketing Admin product surfaces and imports MF modules from `notificationCoupon`, `notificationSms`, `notificationBasic`, `notificationBilling`, `notificationAnalytics`, `notificationCrm`, `aftershipBillingWidgets`, and `perks`.
+- file_or_command: `src/graph/index.ts`
+  - finding: Apollo client adds auth/org/app headers and routes recommendation operations to `RECOMMENDATION_API_PREFIX/graphql`, all others to `MARKETING_BFF_ADMIN_API/graphql`.
+- file_or_command: `codegen.yml`, `graphql.config.json`
+  - finding: GraphQL codegen/schema source is `http://localhost:9003/marketing/admin/graphql`; documents are under `src/graph/**/*.graphql`.
+- file_or_command: `src/utils/network.ts`
+  - finding: Legacy Axios clients target Conversions/Search/Shopping/Chats/Data/Messages/Postmen/Billing APIs and attach org/app/auth headers.
+- file_or_command: `rg -n "MARKETING_BFF_PUBLISH_API" src config`
+  - finding: Public BFF env var is set in `config/env.js` and used by email countdown image rendering under `_components/email/common/Previewer/.../CountdownTimer/index.tsx`.
+- file_or_command: `src/typings/mf-remotes.d.ts`
+  - finding: Declares consumed MF remote surfaces for notification CRM contacts/segments, analytics dashboards/reports, basic hooks/components, coupon editor/list/panel, billing APIs, SMS hooks/pages/common components, and billing widgets.
+- file_or_command: `src/views/recommendation/RecommendationList/index.tsx`, `src/views/recommendation/RecommendationList/useGetAuthInfo.ts`
+  - finding: Recommendation route wraps `@aftership/recommendation-admin-ts` and passes auth/org/app/account headers, billing gates, navigation widgets, and analytics callbacks.
+- file_or_command: `src/apps/messagesApp.ts`
+  - finding: Legacy Messages SPA loader pulls `${MESSAGES_APP}/static/js/spaEntry.js` and registers single-spa props for messages/postmen/conversions APIs.
+- file_or_command: `src/saga/gtm/defaultPageView.ts`, `src/_utils/datacat/index.ts`
+  - finding: Datacat/GTM initialization and helper capture functions use org/account/store context and product code `marketing`.
+- file_or_command: `Jenkinsfile`
+  - finding: CI metadata identifies app `marketing.automizely.com`, repo `marketing.automizely.com.git`, frontend flow, Node 16.16.0 essential image, staging/production enabled, and unit test `yarn tsc`.
+
+## Open Questions
+- question: What is the authoritative repo mapping for `notificationBasic`, `notificationBilling`, `notificationCoupon`, `notificationCrm`, and `notificationAnalytics` on the current master line?
+  - why it matters: This checkout proves MF aliases/CDN subdirectories, but final repo map should avoid assigning a GitHub repo edge without sibling repo evidence, especially for analytics/data naming.
+- question: Should active work use `upstream/master`'s `notification*` remotes or `upstream/feat/flow-v3`'s `adminMarketing*` aliases?
+  - why it matters: The protocol resolves active major to `feat/flow-v3`, but sampled MF config differs from production/master naming and remote environment alignment.
+- question: Is this repo expected to call `bff-api.automizely.com_marketing_admin_v2` directly in a future branch, or only indirectly through notification SDK remotes?
+  - why it matters: Current codegen/runtime evidence points at `/marketing/admin/graphql`; v2 BFF relationship is not direct in this checkout.
+- question: Are legacy Conversions REST/saga-resource stores still authoritative for popups/emails/flows, or are they being migrated to GraphQL/MF remotes module by module?
+  - why it matters: Change routing depends on whether to edit local legacy stores/pages or sibling notification SDK/BFF repos.
+- question: Is `src/apps/messagesApp.ts` still active in production after current `Routes.tsx` redirects webpush/search/settings-brand paths to home?
+  - why it matters: It affects whether Messages app/API remains a real runtime dependency or only historical code.

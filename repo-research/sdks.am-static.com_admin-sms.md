@@ -1,0 +1,233 @@
+# sdks.am-static.com_admin-sms
+
+## Summary
+- project_id: `sdks.am-static.com_admin-sms`
+- repo_name: `sdks.am-static.com_admin-sms`
+- upstream_url: `https://github.com/AfterShip/sdks.am-static.com_admin-sms`
+- local_path: `/Users/wb.chen/Documents/AfterShip/Notification/sdks.am-static.com_admin-sms`
+- repo_type: React/TypeScript SMS admin SDK, Module Federation remote `notification_sms`, and npm package `@aftership/admin-sms`.
+- confidence: High for repo identity, MF config, branch tracks, SMS editor/settings/newsletter responsibilities, and local dependency evidence. Medium for exact backend repo ownership and notification remote repo mapping because this report only inspected this checkout and local git refs.
+
+## Responsibility
+- Owns:
+  - SMS frontend SDK package `@aftership/admin-sms` and MF remote `notification_sms`.
+  - SMS newsletter admin surfaces: list, create-from-template, edit, preview, save, send now, schedule, duplicate/delete/cancel, test SMS, recipient filters, SMS metrics period UI, and report navigation.
+  - Flow SMS action content editor surface: `SMSVariantEditor` loads or creates SMS content variants, edits SMS template body/prefix/opt-out text/Apple Wallet/member recipients/quiet hours, runs content filters/risk-review UX, saves v2 content variants, and sends test flow SMS.
+  - SMS settings and compliance UI: phone-number setup/activation/resubmission/verification, SMS compliance modal/form, SMS phone-number tables, forbidden/rejected/release banners, quiet hours, opt-out text, short-link settings, common SMS settings, and All-in-one/AfterShip product variants.
+  - Reusable SMS components/hooks exported to hosts/remotes: previewers, rich text editors, merge-tag/coupon controls, send-test/manual-send modals, compliance components, phone-number hooks, SMS store, and SMS typings.
+- Does not own:
+  - Backend GraphQL schemas, resolvers, SMS delivery, content persistence, risk-review service, phone-number application service, or billing enforcement service. Evidence: `codegen.yml` points to marketing admin GraphQL endpoints and local `.graphql` files are client operations.
+  - Flow canvas/list/template ownership. This repo owns the SMS variant editor after handoff; flow cache is read/written through `StorageCategory.Flow`.
+  - Email editor/rendering ownership. Email appears in shared generated schema, sample flow data, and Vite aliases, but current SMS source does not own email editing.
+  - Billing, coupon, CRM segment selector, analytics/reporting, accounts widgets, and common notification shell/components; those are consumed through MF remotes/imports.
+- Common change areas:
+  - MF/package config: `package.json`, `mf.config.js`, `config/constants/mf.js`, `config/constants/domain.js`, `config/utils/path.js`, `config/webpack/webpack.module.federation.config.js`, `vite.config.ts`.
+  - Public exports: `src/index.ts`, `src/mfExports/**`.
+  - SMS newsletter: `src/features/smsNewsletter/**`, `src/graphql/v1/queries/smsNewsletter/**`, `src/graphql/v1/mutations/smsNewsletter/**`.
+  - Flow SMS editor: `src/features/SMSVariantEditor/**`, `src/components/SMSContent*`, `src/components/SMSPreviewer*`, `src/graphql/v2/queries/message/**`, `src/graphql/v2/mutations/message/**`, `src/graphql/v2/mutations/sms/sendTestFlowSMS.graphql`.
+  - Settings/compliance/phone numbers: `src/features/smsSettings/**`, `src/features/smsCompliance/**`, `src/hooks/useSMSPhoneNumber*.ts`, `src/hooks/settings/**`, `src/graphql/v2/queries/settings/**`, `src/graphql/v2/mutations/settings/**`, `src/graphql/v2/queries/smsPhoneNumber.graphql`, `src/graphql/v2/mutations/smsPhoneNumber.graphql`.
+
+## Branch Tracks
+- production: `upstream/master` exists. Local ref observed at `90f9e498` on `2026-05-27`, "Merge pull request #1427 from AfterShip/feat/migration_polaris_v13". MF identity on this branch is `notification_sms`; CDN subdirectory is `notification-sms`.
+- legacy_v9: No `master_v9` ref found in this checkout's local or remote refs during targeted branch checks.
+- active_major: `upstream/feat/flow-v3-polaris-v13` exists and should be preferred by the protocol; observed at `b1754812` on `2026-05-26`, "Merge pull request #1422 from feidom-up/feat/flow-v3-polaris-v13". Fallback `upstream/feat/flow-v3` also exists at `a657e1b5` on `2026-05-11`.
+- repo_specific_notes:
+  - Current checkout is `feat/data-retention...upstream/feat/data-retention` with a clean working tree at inspection time.
+  - Remotes are fork-first shaped: `origin` points to `git@github.com:Wynne-cwb/sdks.am-static.com_admin-sms.git`; `upstream` points to `git@github.com:AfterShip/sdks.am-static.com_admin-sms.git`.
+  - `origin/master` is older than `upstream/master` in local refs; branch selection for company work should use `upstream/<resolved-base-branch>`.
+  - `upstream/master` and current checkout expose the same base MF shape. `upstream/feat/flow-v3-polaris-v13` adds `./notificationConfigStore` and pins notification remotes to `release-incy-sdks.am-static.io` in sampled `config/constants/mf.js`.
+
+## Module Federation
+- enabled: Yes. `package.json` has `mf`, `build`, and `serve` scripts using `config/webpack/webpack.module.federation.config.js`; that webpack config instantiates `@module-federation/enhanced/webpack` `ModuleFederationPlugin` and emits `remoteEntry.js`.
+- exposes:
+  - Current checkout / `upstream/master`: `./businessPage`, `./smsTypings`, `./commonComponents`, `./basicHooks`, `./smsInit`.
+  - `upstream/feat/flow-v3-polaris-v13`: the same exports plus `./notificationConfigStore -> ./src/mfExports/notificationConfigStore.ts`.
+  - `./businessPage` exports `SMSEditor`, `SMSList`, `SMSPreview`, `SMSVariantEditor`, and `SmsSetting`.
+  - `./commonComponents` exports SMS compliance modals/banners, registration flow, forbidden/credit/usage components, rich text editor, send modal, phone number release/dedicated number banners, and AI translate modal.
+  - `./basicHooks` exports SMS store, phone-number hooks, recipient hook, redirect path hook, registration-flow store, rejected reason hook, and SMS template hook.
+  - `./smsInit` exports `useGetSmsPhoneNumber`; `./smsTypings` exports SMS variant/phone-number/template typings.
+- remotes:
+  - `notificationBilling -> notification_billing`
+  - `notificationBasic -> notification_basic`
+  - `notificationCoupon -> notification_coupon`
+  - `notificationCrm -> notification_crm`
+  - `notificationAnalytics -> notification_analytics`
+  - `aftershipBillingWidgets -> aftership_billing_ui`
+  - `aftershipAccountsWidgets -> aftership_accounts_widgets`
+- shared_packages:
+  - MF shared singleton packages include `react`, `react-dom`, `react-redux`, `react-router`, `react-router-dom`, `@aftership/aha`, `@aftership/aha-icons`, `@aftership/meerkat-sdk`, `@aftership/automizely-product-auth`, `@aftership/automizely-frontend-dev-kit`, `formik`, `@aftership/growth-components`, `@aftership/datacat`, and related Shopify/App Bridge packages.
+  - Vite/package externals and peers include `@aftership/admin-marketing-basic`, `@aftership/admin-marketing-billing`, `@aftership/admin-marketing-coupon`, `@aftership/admin-marketing-data`, `@aftership/admin-crm`, `@aftership/admin-email`, `@aftership/admin-flow`, `@aftership/admin-sms`, and MF remote regexes for `notification*` and widget remotes.
+- branch_alignment:
+  - For flow-v3/polaris-v13 work, align to `upstream/feat/flow-v3-polaris-v13` unless task evidence says production hotfix.
+  - For production fixes, use `upstream/master`.
+  - No legacy `master_v9` track was observed for this repo.
+  - MF URL generation is environment/CDN based via `config/utils/path.js`; current/master remotes derive from `APP_ENV`, while sampled active major pins notification remotes to release-incy URLs.
+
+## Team Repo Dependencies
+- Direct dependencies:
+  - Package deps/dev deps: `@aftership/aha`, `@aftership/aha-icons`, `@aftership/am-filters`, `@aftership/datacat`, `@aftership/meerkat-sdk`, `@aftership/automizely-product-auth`, `@aftership/automizely-frontend-dev-kit`, `@aftership/deploy-frontend-assets`, `@aftership/module-federation-typescript`, `@module-federation/enhanced`.
+  - Externals/peer deps: `@aftership/admin-marketing-basic`, `@aftership/admin-marketing-billing`, `@aftership/admin-marketing-coupon`, `@aftership/admin-marketing-data`, `@aftership/datacat`, `@aftership/meerkat-sdk`.
+  - Vite SDK externals/aliases also reference `@aftership/admin-email`, `@aftership/admin-flow`, `@aftership/admin-sms`, `@aftership/admin-crm`, `@aftership/billing-ui-react`, and MF aliases for `notificationBilling`, `notificationBasic`, `notificationCoupon`, `notificationAnalytics`, `notificationCrm`, billing widgets, and accounts widgets.
+- Runtime calls:
+  - GraphQL v1 schema is `http://localhost:9003/marketing/admin/graphql`; operations include SMS newsletter list/detail/templates/save/send/delete/cancel/test, recipient/credit count, common filters, segment queries/update, coupon campaigns, SMS content templates/detail/list, storage status, store queries, SMS compliance, and risk-management checks.
+  - GraphQL v2 schema is `http://localhost:9006/marketing/admin/v2/graphql`; operations include content variant/group create/save/detail/defaults, `sendTestFlowSMSV2`, `resendSMS`, `checkSMSPermission`, SMS pricing/templates/render diff/Apple Wallet, phone-number list/business info/application/resubmit, common SMS settings/opt-out/quiet-hours/short-links, flow list, migration schedule, merge tags, members, shipment test data, features, and risk-review queries.
+  - Runtime MF imports call into `notificationBasic`, `notificationBilling`, `notificationCoupon`, `notificationCrm`, `notificationAnalytics`, `aftershipBillingWidgets`, and `aftershipAccountsWidgets`.
+- Build-time dependencies:
+  - Webpack 5, `@module-federation/enhanced`, `@aftership/module-federation-typescript`, SWC, Vite, `vite-plugin-dts`, `vite-plugin-svgr`, GraphQL Code Generator, `am-kit-hooks-codegen`, and `@aftership/deploy-frontend-assets`.
+  - Jenkins identifies app/repo as `sdks.am-static.com_admin-sms`, frontend flow, Node 16.16.0 essential image, and `prePublishScript = "yarn build:sdk"`.
+- Shared packages:
+  - UI/platform: AHA, AHA icons, automizely product auth, frontend dev kit, growth components, Shopify app bridge, meerkat SDK.
+  - Analytics/telemetry: `@aftership/datacat` and `src/utils/asPixel.ts`.
+  - Filtering/recipients: `@aftership/am-filters` plus `notificationBasic` filter rendering hooks and `notificationCrm/segments`.
+  - Billing/features: `notificationBilling/*` and `aftershipBillingWidgets/*`.
+- Inferred but unconfirmed:
+  - `notificationBasic`, `notificationBilling`, `notificationCoupon`, `notificationCrm`, and `notificationAnalytics` likely correspond to notification-era MF outputs of team repos in the repo queue, but this report did not inspect those repos.
+  - The two GraphQL endpoints likely map to marketing admin BFF repos, especially v2 for notification content/settings flows, but exact backend ownership is not proven from this checkout alone.
+  - The production host or facade that imports `notification_sms` is not identified in this repo; possible consumers include admin host/aio-notification style shells, but that needs host-repo evidence.
+
+## Business Flows
+- flow_id: `sms-newsletters`
+  - role: Owns SMS campaign/newsletter admin UI: list, template create modal, editor, preview, save, send now, schedule, test SMS, duplicate/delete/cancel, metrics time-period selection, and report navigation.
+  - upstream/downstream repos: Downstream marketing admin v1 GraphQL SMS newsletter APIs; runtime dependencies on `notificationBasic`, `notificationBilling`, `notificationCoupon`, `notificationCrm`, `notificationAnalytics`, and billing widgets.
+- flow_id: `flow-sms-action-content`
+  - role: Owns SMS content editor used after flow action handoff. It reads `StorageCategory.Flow`, loads existing SMS variant or creates content from template, edits SMS template settings, saves `ContentVariantInput`, writes action metadata such as `content_id`, `member_mode`, and `member_ids` back to Flow storage, then navigates back.
+  - upstream/downstream repos: Upstream flow editor/host supplies flow cache and route context; downstream marketing admin v2 GraphQL content variant/template/risk-review APIs; runtime dependencies on `notificationBasic`, `notificationBilling`, `notificationCoupon`, and billing widgets.
+- flow_id: `flow-send-test-sms`
+  - role: Owns send-test UI for flow SMS variants, including country/phone input, real order/shipment test data selection, recaptcha policy, SMS permission check, pricing/country coverage, risk-review/custom-filter checks, and `sendTestFlowSMSV2`.
+  - upstream/downstream repos: Downstream v2 GraphQL SMS pricing/permission/send-test APIs and notification history route; runtime dependencies on billing widgets and `notificationBasic` real-data components.
+- flow_id: `sms-settings-compliance`
+  - role: Owns SMS settings page and setup journey: phone-number detection, compliance modal, V3 phone-number application/resubmit/verify, region/type selection, Shopify password handling, RBAC/billing gates, phone-number tables, opt-out text, quiet hours, short links, common settings, and All-in-one settings layout.
+  - upstream/downstream repos: Downstream v2 GraphQL settings and SMS phone-number APIs; runtime dependencies on `notificationBasic` shell/RBAC/storage hooks and `notificationBilling` feature gates.
+- flow_id: `notification-suite-sms-remote`
+  - role: Provides the SMS MF remote and SDK exports consumed by notification/admin shells and sibling notification remotes. It is a notification-era SMS sibling to email/flow modules, not the owner of email editor or flow canvas.
+  - upstream/downstream repos: Consumes `notificationBasic`, `notificationBilling`, `notificationCoupon`, `notificationCrm`, `notificationAnalytics`, billing/accounts widgets; Vite aliases show sibling package relationships with `@aftership/admin-email`, `@aftership/admin-flow`, and `@aftership/admin-sms`.
+
+## Important Entrypoints
+- path: `package.json`
+  - why it matters: Defines package identity `@aftership/admin-sms`, SDK/MF scripts, build/codegen/test scripts, externals, peer dependencies, and team package dependencies.
+- path: `mf.config.js`
+  - why it matters: Defines `remoteEntry.js`, exposed modules, remotes, and MF shared singleton package contract.
+- path: `config/constants/mf.js`
+  - why it matters: Source of MF exposes/remotes; active major adds `./notificationConfigStore`.
+- path: `config/constants/domain.js`
+  - why it matters: Defines ports `9204`/`8204`, CDN domain mapping, `DOMAIN_SUBDIRECTORY = 'notification-sms'`, and `MODULE_FEDERATION_NAME = 'notification_sms'`.
+- path: `config/utils/path.js`
+  - why it matters: Builds publicPath and remote URLs for notification/billing/accounts remotes across development/testing/staging/production/release environments.
+- path: `config/webpack/webpack.module.federation.config.js`
+  - why it matters: Builds the MF remote entry from `src/index`, emits `build/remoteEntry.js`, sets `publicPath`, and wires TypeScript remote plugin outside development.
+- path: `vite.config.ts`
+  - why it matters: Builds SDK package in `lib/`, declares aliases for admin email/flow/SMS package imports, and keeps notification/widget remotes external.
+- path: `codegen.yml` and `devkit.config.js`
+  - why it matters: Defines v1/v2 marketing admin GraphQL schemas, document globs, generated type files, and hook generator keys.
+- path: `src/index.ts`
+  - why it matters: Package entrypoint re-exporting MF business pages, typings, common components, hooks, SMS init, newsletter pages, variant editor, settings, and phone-number hook.
+- path: `src/mfExports/businessPage.ts`
+  - why it matters: Main business-page export surface: SMS newsletter editor/list/preview, `SMSVariantEditor`, and `SmsSetting`.
+- path: `src/mfExports/commonComponents.ts`
+  - why it matters: Public reusable SMS components including compliance modals/banners, registration flow, forbidden/credit/usage widgets, rich text editor, send modal, release/dedicated banners, and AI translate modal.
+- path: `src/mfExports/basicHooks.ts`
+  - why it matters: Public SMS hooks/store surface for phone numbers, recipients, redirect paths, registration flow, rejected reason, templates, and SMS store.
+- path: `src/features/smsNewsletter/smsList/index.tsx`
+  - why it matters: Main SMS newsletters page; composes notification/billing/analytics/reminder banners, template creation, metrics selector, overview, created list, and learn-more UI.
+- path: `src/features/smsNewsletter/smsEditor/index.tsx`
+  - why it matters: Full-screen SMS newsletter editor; controls save/send/schedule/test actions and preview/settings panels.
+- path: `src/features/smsNewsletter/hooks/useHandleSubmit.ts`
+  - why it matters: Converts SMS newsletter form state into GraphQL inputs, performs soft-filter checks, saves/sends/schedules, handles credit warning, and returns to newsletter list.
+- path: `src/features/SMSVariantEditor/index.tsx`
+  - why it matters: Main Flow SMS action editor; reads flow cache, initializes merge tags/phone numbers, loads detail/template, handles migration and Apple Wallet, and saves content variants.
+- path: `src/features/SMSVariantEditor/hooks/useGetSMSDetail.ts`
+  - why it matters: Loads SMS variant detail or creates content group by template via v2 GraphQL, combines SMS template through `notificationBasic`, and detects migration needs.
+- path: `src/features/SMSVariantEditor/hooks/useSaveSMSContent.ts`
+  - why it matters: Runs system-template/content-filter checks, saves `ContentVariantInput`, and writes updated action info back to Flow cache.
+- path: `src/features/SMSVariantEditor/hooks/useFlowCache.ts` and `src/features/SMSVariantEditor/hooks/useBackToFlow.ts`
+  - why it matters: Defines the storage handoff contract with Flow through `StorageCategory.Flow`.
+- path: `src/features/SMSVariantEditor/components/SendTestSMSModal/SendTestSMSModal.tsx`
+  - why it matters: Flow SMS send-test orchestration with pricing, SMS permission, country/sender readiness, recaptcha, risk review, real shipment/order data, and `sendTestFlowSMSV2`.
+- path: `src/features/smsSettings/index.tsx`
+  - why it matters: Main SMS settings page with billing/RBAC gating, All-in-one vs non-All-in-one layout, setup intro, phone-number banners, forbidden/rejected states, and global compliance modal.
+- path: `src/features/smsCompliance/components/ComplianceModal/ComplianceModal.tsx`
+  - why it matters: Compliance/setup modal shell, dynamic region/field validation, business-info fetch, Formik state preservation, and submission flow.
+- path: `src/features/smsCompliance/components/ComplianceModal/hooks/useComplianceModalSubmit.tsx`
+  - why it matters: Converts compliance form to V3 submit/resubmit API inputs and handles success/error/rate-limit UX.
+- path: `src/hooks/useSMSPhoneNumber.ts` and `src/hooks/useSMSPhoneNumberV3.ts`
+  - why it matters: Public phone-number setup hooks and V3 application/resubmission GraphQL mutation bridge.
+- path: `src/hooks/settings/**`
+  - why it matters: Settings hooks for common SMS settings, opt-out text, quiet hours, and short links.
+- path: `src/graphql/v1/**` and `src/graphql/v2/**`
+  - why it matters: Local API contract surface clarifying the repo is a frontend client over marketing admin GraphQL APIs.
+- path: `Jenkinsfile`
+  - why it matters: CI/deploy metadata for frontend app name, repo name, Node image, staging/production support, and SDK prepublish script.
+
+## Evidence
+- file_or_command: `sed -n '1,240p' /Users/wb.chen/Documents/Project/skills/NOTIFICATION_REPO_MAP_RESEARCH.md`
+  - finding: Per-repo reports must capture responsibility, branch tracks, MF config, team dependencies, business flow roles, entrypoints, and evidence; branch priority is `master`, optional `master_v9`, then active major `feat/flow-v3-polaris-v13` before `feat/flow-v3`.
+- file_or_command: `git remote -v`
+  - finding: `origin` is `git@github.com:Wynne-cwb/sdks.am-static.com_admin-sms.git`; `upstream` is `git@github.com:AfterShip/sdks.am-static.com_admin-sms.git`.
+- file_or_command: `git status --short --branch`
+  - finding: Current checkout is `feat/data-retention...upstream/feat/data-retention`; no source working-tree changes were reported.
+- file_or_command: `git for-each-ref ... upstream/master ... upstream/feat/flow-v3 ... upstream/feat/flow-v3-polaris-v13`
+  - finding: `upstream/master`, `upstream/feat/flow-v3`, and `upstream/feat/flow-v3-polaris-v13` exist; no `master_v9` ref was returned in targeted checks.
+- file_or_command: `package.json`
+  - finding: Package name is `@aftership/admin-sms`; scripts include `mf`, `build`, `build:sdk`, `serve`, `codegen`, `mf-types-codegen`, `test`, and `upload-assets`; externals/peers include admin marketing/basic/billing/coupon/data packages.
+- file_or_command: `config/constants/domain.js`
+  - finding: `MODULE_FEDERATION_NAME = 'notification_sms'`, `DOMAIN_SUBDIRECTORY = 'notification-sms'`, MF port is `8204`, example port is `9204`, and CDN domains are defined for testing/staging/production/release environments.
+- file_or_command: `config/constants/mf.js`
+  - finding: Current/master MF exposes `./businessPage`, `./smsTypings`, `./commonComponents`, `./basicHooks`, and `./smsInit`; remotes are notification basic/billing/coupon/crm/analytics plus billing/accounts widgets.
+- file_or_command: `git show upstream/feat/flow-v3-polaris-v13:config/constants/mf.js`
+  - finding: Active major adds `./notificationConfigStore` and pins notification remotes to `https://release-incy-sdks.am-static.io/.../remoteEntry.js`.
+- file_or_command: `mf.config.js`
+  - finding: MF remote config emits `remoteEntry.js`, consumes `MF_EXPORTS`/`MF_REMOTES`, and shares React/AHA/auth/dev-kit/formik/datacat/growth packages as singletons.
+- file_or_command: `config/webpack/webpack.module.federation.config.js`
+  - finding: Webpack MF build uses `ModuleFederationPlugin`, entry `src/index`, output `build`, publicPath from environment/domain helper, and TypeScript remote plugin outside development.
+- file_or_command: `config/utils/path.js`
+  - finding: Remote URL helpers resolve notification-basic/billing/coupon/analytics/crm plus billing/accounts widget `remoteEntry.js` URLs from `APP_ENV`.
+- file_or_command: `vite.config.ts`
+  - finding: SDK build aliases `adminEmail/*`, `adminFlow/businessPage`, and `notificationSms/*` to AfterShip npm packages, and externalizes notification/widget MF remotes.
+- file_or_command: `codegen.yml`
+  - finding: v1 schema is `http://localhost:9003/marketing/admin/graphql`; v2 schema is `http://localhost:9006/marketing/admin/v2/graphql`; documents are split under `src/graphql/v1/**/*.graphql` and `src/graphql/v2/**/*.graphql`.
+- file_or_command: `rg -n "mutation |query |fragment " src/graphql/v1 src/graphql/v2`
+  - finding: Operations cover SMS newsletters, SMS content/template, flow content variants, send-test/resend SMS, SMS phone numbers/application, settings, risk review, coupons, segments, filters, stores, flow list, migration, members, and shipment/order test data.
+- file_or_command: `src/mfExports/businessPage.ts`
+  - finding: Exports newsletter editor/list/preview, `SMSVariantEditor`, and `SmsSetting`.
+- file_or_command: `src/mfExports/commonComponents.ts`
+  - finding: Exports compliance modals/banners, save-as-segment modal, phone-number registration flow, forbidden/credit/usage components, rich text editor, send modal, release/dedicated number banners, and AI translate modal.
+- file_or_command: `src/mfExports/basicHooks.ts`
+  - finding: Exports SMS store, phone-number hooks, recipient hook, redirect path hook, registration flow store, rejected reason hook, and template hook.
+- file_or_command: `src/features/smsNewsletter/smsList/index.tsx`
+  - finding: Main newsletters page composes `SMSOverview` from `notificationAnalytics`, `BasicPage` from `notificationBasic`, phone-number/rejected/forbidden banners, template creation, and metrics period selector.
+- file_or_command: `src/features/smsNewsletter/smsEditor/index.tsx`
+  - finding: Editor controls save, send now, schedule, send test SMS, content review modal, credit warning modal, settings panel, previewer, and navigation adapter.
+- file_or_command: `src/features/smsNewsletter/hooks/useHandleSubmit.ts`
+  - finding: Uses v1 generated mutations/queries to save/send newsletters, convert recipients selection, execute soft-filter checks, and handle billing upgrade warnings.
+- file_or_command: `src/features/SMSVariantEditor/index.tsx`
+  - finding: Reads flow cache, fetches SMS phone numbers/merge tags, loads migration schedule and Apple Wallet data, initializes SMS variant detail, and renders editor plus global compliance modal.
+- file_or_command: `src/features/SMSVariantEditor/hooks/useGetSMSDetail.ts`
+  - finding: Uses v2 `useGetSmsVariantDetailLazyQuery`, `useCreateContentGroupByTemplateMutation`, and `useGetHideSmsPrefixLazyQuery`; combines SMS template through `notificationBasic` resource store.
+- file_or_command: `src/features/SMSVariantEditor/hooks/useSaveSMSContent.ts`
+  - finding: Uses v2 `useSaveContentVariantMutation`, `useCheckSystemTemplateMutation`, SMS soft filters, and `useBackToFlow` to save content and return action data.
+- file_or_command: `src/features/SMSVariantEditor/hooks/useFlowCache.ts` and `src/features/SMSVariantEditor/hooks/useBackToFlow.ts`
+  - finding: Flow handoff is session-storage based through `StorageCategory.Flow`; save/cancel updates storage and navigates back.
+- file_or_command: `src/features/SMSVariantEditor/components/SendTestSMSModal/SendTestSMSModal.tsx`
+  - finding: Uses v2 SMS pricing, permission, send-test mutation, risk review, recaptcha policy, billing subscription/upgrade widgets, country options, and `RealDataTable` for order/shipment test data.
+- file_or_command: `src/features/smsSettings/index.tsx`
+  - finding: Main settings page gates by notification billing features/RBAC, loads phone numbers, handles All-in-one product mode, and renders setup/compliance/phone-number banners.
+- file_or_command: `src/hooks/settings/useHandleSettingsSubmit.ts`, `useHandleSmsOptoutTextSettings.ts`, `useHandleSmsQuietHourSettings.ts`, `useHandleSmsShortLinkSettings.ts`
+  - finding: Settings hooks call v2 generated queries/mutations for common settings, opt-out text, quiet hours, and short links.
+- file_or_command: `src/hooks/useSMSPhoneNumber.ts`, `src/hooks/useSMSPhoneNumberV3.ts`
+  - finding: Phone-number hooks fetch SMS phone numbers, open compliance modal, submit/resubmit V3 phone-number applications, and refresh local SMS phone-number store.
+- file_or_command: `src/features/smsCompliance/components/ComplianceModal/ComplianceModal.tsx` and `hooks/useComplianceModalSubmit.tsx`
+  - finding: Compliance modal builds dynamic validation from selected SMS regions/types, preloads business info, transforms form values to V3 API input, and handles submit/resubmit success/error UX.
+- file_or_command: `Jenkinsfile`
+  - finding: Jenkins app is `sdks.am-static.com_admin-sms`, git repo is `sdks.am-static.com_admin-sms.git`, flow is `frontend`, Node image tag is `nodejs-16.16.0`, staging/production are enabled, and `prePublishScript` is `yarn build:sdk`.
+
+## Open Questions
+- question: Which exact backend repo owns `http://localhost:9003/marketing/admin/graphql` and `http://localhost:9006/marketing/admin/v2/graphql` SMS resolvers?
+  - why it matters: This repo owns frontend operations and generated client types, but backend schema/resolver ownership must be confirmed before backend changes.
+- question: Which production host/facade imports `notification_sms` remote and which routes mount `SMSList`, `SMSEditor`, `SMSVariantEditor`, and `SmsSetting`?
+  - why it matters: This repo exposes pages/components, but the host route contract is not fully visible from this checkout.
+- question: Are `notificationBasic`, `notificationBilling`, `notificationCoupon`, `notificationCrm`, and `notificationAnalytics` separate repo names, MF aliases of `admin-marketing-*` repos, or branch-specific migration names?
+  - why it matters: Cross-repo changes need the correct local checkout and branch track.
+- question: Is `./notificationConfigStore` on `feat/flow-v3-polaris-v13` now a stable public MF API or only a branch-local active-major integration?
+  - why it matters: Consumers may depend on it only on active major; production/master does not expose it in current local refs.
+- question: How much of the Vite alias relationship with `@aftership/admin-email` and `@aftership/admin-flow` is used by downstream SDK consumers versus historical/shared config?
+  - why it matters: The repo clearly relates to email/flow as sibling notification packages, but current SMS source mostly interacts with flow through storage handoff and with email through shared schema/sample flow data rather than direct runtime imports.

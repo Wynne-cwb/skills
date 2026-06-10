@@ -1,0 +1,251 @@
+# admin.aftership.com
+
+## Summary
+- project_id: `admin.aftership.com`
+- repo_name: `admin.aftership.com`
+- upstream_url: `https://github.com/AfterShip/admin.aftership.com`
+- local_path: `/Users/wb.chen/Documents/AfterShip/admin.aftership.com`
+- repo_type: React 18 + Vite AfterShip Tracking Admin frontend；standalone Admin shell，同时也是 Module Federation remote `admin_tracking`，并消费多个平台/通知/营销 MF remotes。
+- confidence: High for repo identity, branch refs, MF host/remote config, shell responsibilities, routes, notification entrypoints, and local API evidence. Medium for exact GitHub repo mapping behind some remote aliases because this checkout proves aliases/CDN paths, not every remote's source repo.
+
+## Responsibility
+- Owns:
+  - AfterShip Tracking Admin UI shell at `admin.aftership.com` / `admin.aftership.io`, including auth, AHA/i18n, RBAC, Apollo, React Query, Redux/Saga, billing, navigation, notification center, comments, onboarding, Sentry, Meerkat, and global modals/providers.
+  - Standalone app startup (`src/index.ts` -> `src/web.ts` -> `src/App.tsx`) and Admin Host embedded startup (`src/mf-index.ts`, `src/mf-shipments.tsx`) through `@aftership/admin-host-runtime`.
+  - Main route graph for home, shipments, tracking pages/clips, dashboards, notification settings/history/webhooks, ENS all-in-one notification wrappers, billing/settings, integrations/apps, protection, onboarding/guidance, and company-console tracking paths.
+  - Module Federation identity `admin_tracking`, `remoteEntry.js`, exposed root app and shipments app, plus runtime consumption of notification, marketing, billing, navigation, accounts, platform widgets, comments, analytics editor, reviews, perks, integrations, and AfterShip One Portal remotes.
+  - Local legacy notification admin surfaces under `/notifications/...`: settings, sending/send-from, email/SMS template edit, webhooks, notification history/export/filter/detail, and legacy workflow/email-template GraphQL operations.
+  - New ENS route wrappers under `/ens/...`: Flow list/templates/editor, email/SMS variant editors, custom templates, content group reports, and SMS compliance/settings. These wrappers mostly enforce permission, routing, save-bar behavior, custom-status transforms, and hand off business components to `aftershipNotification`.
+- Does not own:
+  - Core Platform Notification business components for flow/email/SMS/content/report/settings in the new ENS path. Those are imported from the `aftershipNotification` MF remote, currently backed by `platform_notification` on master/current branch.
+  - Notification send/delivery backend, message rendering backend, notification GraphQL resolvers, webhook execution, or billing entitlement services.
+  - `marketing.automizely.com` application internals. This repo consumes `admin-marketing` remote/package and exposes `MARKETING_URL`, but does not own the Marketing Admin app.
+  - `aftership-os-notification` shell. No direct `aftership_os_notification` or `/os-notification` import was found; the relationship is indirect through the shared Platform Notification MF ecosystem.
+  - AfterShip One Portal home/onboarding/Pendo internals, AfterShip navigation/accounts/billing/platform widgets/comments/reviews/analytiker internals, or their source repos.
+- Common change areas:
+  - Host/MF shell: `mf.config.js`, `vite.config.js`, `src/index.ts`, `src/web.ts`, `src/mf-index.ts`, `src/mf-shipments.tsx`, `src/utils/history.js`, `src/hooks/navigation/useUpdateAdminHostNavigation.tsx`.
+  - Provider/runtime stack: `src/GlobalInitialProvider/**`, `src/frames/Admin/index.tsx`, `src/frames/Company/index.tsx`, `src/App.tsx`, `src/Routes.tsx`.
+  - Route graph and notification wrappers: `src/routes/AdminRoutes.tsx`, `src/pages/Notifications/**`, `src/pages/Ens/**`, `src/components/Navigation/hooks/useMainNavigation.tsx`.
+  - API/env contracts: `config/env.js`, `src/utils/network.js`, `src/utils/apollo.ts`, `src/graphql/schemaFetcher.js`, `src/pages/Notifications/graphql/*.graphql`.
+  - Build/deploy: `package.json`, `Jenkinsfile`, `scripts/upload-assets.js`, `scripts/html.js`, `config/mf/i18nResolvePlugin.ts`.
+
+## Branch Tracks
+- production: `upstream/master` exists. Local evidence: `upstream/master 8d535e1464dbc0b69c8bec162cf9856b371bd276 2026-05-29 12:31:11 +0800 Merge pull request #15040 from AfterShip/testing`.
+- legacy_v9: No `upstream/master_v9` ref found in the local/tracked refs checked (`show-ref` returned nonzero).
+- active_major: `upstream/feat/flow-v3-polaris-v13` exists and should be preferred by the protocol; `upstream/feat/flow-v3` also exists as fallback. Evidence: `upstream/feat/flow-v3-polaris-v13 ee8bfc062c30... 2026-05-19 ...`, `upstream/feat/flow-v3 d9aafcb749... 2026-05-15 ...`.
+- repo_specific_notes:
+  - Current checkout during research was `feat/exception-agent`, tracking `origin/feat/exception-agent`, at `6ed94fb55e715510c5831ec12c06cf2be1148e2b`.
+  - Remotes are fork-first shaped: `origin` is `git@github.com:Wynne-cwb/admin.aftership.com.git`; `upstream` is `git@github.com:AfterShip/admin.aftership.com.git`.
+  - Environment/release refs found include `upstream/testing`, `upstream/staging`, `upstream/release/core`, `upstream/release/kiwi`, `upstream/release/northstar`, `upstream/release/okra`, `upstream/release/pear`, and `upstream/release/plum`.
+  - Current working tree was not clean before research: `git status --short --branch` showed untracked `AGENTS.md` in the target checkout. The research did not modify source files.
+
+## Module Federation
+- enabled: true. `vite.config.js` imports `federation` from `@module-federation/vite`, `moduleFederationTypes` from `@aftership/module-federation-typescript`, and calls both with `getMFConfig(publicPaths)`.
+- exposes:
+  - `.` -> `./src/mf-index.ts`
+  - `./shipments` -> `./src/mf-shipments.tsx`
+- remotes:
+  - `aftershipNotification`: current/master maps to `platform_notification@${getFederationUrl()}/platform-notification/remoteEntry.js`.
+  - `marketing`: `admin-marketing` remote from `sdks.am-static.io`, `staging-sdks.am-static.com`, or `sdks.am-static.com`.
+  - `perks`: `perks@.../admin-perks/remoteEntry.js`.
+  - `aftership_integrations-react-routes`: module remote under widgets CDN `/integrations/integrations-react-routes/v1/remoteEntry.js`.
+  - `aftershipBillingUi`: `aftership_billing_ui@.../aftership-billing-ui/v2/remoteEntry.js`.
+  - `aftershipAccountsWidgets`: `aftership_accounts_widgets@.../accounts/v1/remoteEntry.js`.
+  - `AftershipNavigation`: `aftership_navigation@.../aftership_navigation/v2/remoteEntry.js`.
+  - `aftershipPlatformWidgets`: `aftership_platform_widgets@.../platform/v2/remoteEntry.js`.
+  - `comments_widgets`: `comments_widgets@.../comments/remoteEntry.js`.
+  - `analytikerEditor`: `analytiker_editor_aftership@.../analytiker-editor/as/v2/remoteEntry.js`.
+  - `admin_platform_reviews`: `admin_platform_reviews@.../v2/remoteEntry.js`.
+  - `aftershipOnePortal`: `admin_aop@<admin.aftership host>/home/v2/remoteEntry.js`, or local `http://localhost:8207/home/remoteEntry.js` when `USE_LOCAL_AFTERSHIP_ONE_PORTAL=1`.
+- shared_packages:
+  - MF shared singletons include `react`, `react-dom`, `react-redux`, `react-router`, `react-router-dom`, `@aftership/automizely-product-auth`, Shopify App Bridge packages, `formik`, `@aftership/growth-components`, `@aftership/upload-center`, `@aftership/meerkat-sdk`, `@aftership/datacat`, `@sentry/react`, `i18next`, `react-i18next`, `react-query`, `react-beautiful-dnd`, `axios`, AHA packages, `@aftership/automizely-rbac-react`, `@aftership/crisp-chatbox`, and related Shopify utilities.
+- branch_alignment:
+  - `HEAD` and `upstream/master` both expose `admin_tracking` and consume `aftershipNotification` from `platform_notification@.../platform-notification/remoteEntry.js`.
+  - `upstream/feat/flow-v3-polaris-v13` also uses `platform_notification`, but pins it to `https://release-incy-sdks.am-static.io/platform-notification/remoteEntry.js`.
+  - `upstream/feat/flow-v3` differs materially: it maps `aftershipNotification` to `aio_notification@https://release-incy-sdks.am-static.io/aio-notification/remoteEntry.js` with a TODO to remove after aio-notification deploys to production.
+  - Historical `upstream/feat/notification-mf` had different identity (`name: 'aftership/admin'`) and no exposes in sampled `mf.config.js`; treat it as historical unless a task explicitly targets it.
+
+## Team Repo Dependencies
+- Direct dependencies:
+  - Shell/platform: `@aftership/admin-host-runtime`, `@aftership/automizely-product-auth`, `@aftership/automizely-rbac-react`, `@aftership/growth-components`, `@aftership/meerkat-sdk`, `@aftership/datacat`, `@aftership/gtm-sdk`, `@aftership/upload-center`.
+  - UI/design: `@aftership/aha`, `@aftership/aha-charts`, `@aftership/aha-hooks`, `@aftership/aha-icons`, `@aftership/aha-locale`, `@aftership/a2ui-react`, `@aftership/automizely-tools-ui-react`.
+  - Notification/editor adjacent packages: `@aftership/emailcat`, `@aftership/flow-editor-ui-react`, `@aftership/react-email-module`, `@aftership/subscription-ui`.
+  - Marketing/admin widgets: `@aftership/admin-marketing`, `@aftership/navigation`.
+  - MF/build: `@module-federation/vite`, `@aftership/vite-plugin-federation`, `@aftership/module-federation-typescript`, `@aftership/deploy-frontend-assets`.
+- Runtime calls:
+  - AfterShip Admin REST: `src/utils/network.js` creates `callAftership` from `process.env.AFTERSHIP_API`; `config/env.js` maps this to `admin-api.aftership.com/v1`, `staging-admin-api.aftership.com/v1`, or `admin-api.aftership.io/v1`.
+  - AfterShip GraphQL: `src/utils/apollo.ts` sends `aftershipClient` to `process.env.AFTERSHIP_GRAPHQL_URL`; `config/env.js` maps it to `admin-api.aftership.com/graphql`, staging, release, or `.io`.
+  - Automizely/AfterShip admin GraphQL: `src/utils/apollo.ts` also defines `automizelyClient` for `process.env.AUTOMIZELY_GRAPHQL_URL`; `config/env.js` maps it to `${getAutomizelyGraphqlDomain()}/aftership/admin/graphql`.
+  - GraphQL schema fetch: `src/graphql/schemaFetcher.js` fetches `${bffHost}/aftership/admin/schema`, with `USE_LOCAL_BFF=true` pointing to `http://localhost:9003`.
+  - Legacy notification REST/GraphQL: `src/pages/Notifications/graphql/notification.graphql` and `notificationFlow.graphql` define notification history/detail/webhook/config/SMS/workflow/email-template operations; local hooks/components also call `/notifications/organizations`, `/notifications/sms-templates`, and related REST endpoints through `callAftership`.
+  - New ENS notification runtime: `/ens/*` wrappers import `FlowList`, `FlowEditor`, `FlowTemplates`, `EmailVariantEditor`, `SMSVariantEditor`, `EmailTemplates`, `CustomTemplateEditor`, `ContentGroupReport`, `SmsSetting`, hooks, billing feature helpers, and migration/registration helpers from `aftershipNotification`.
+  - Marketing relation: `mf.config.js` consumes an `admin-marketing` remote under `admin-marketing/remoteEntry.js`; `package.json` depends on `@aftership/admin-marketing`; local wrappers use `Banner`, `BannerCarousel`, and `InitBeamer`; `config/env.js` exposes `MARKETING_URL` as `https://marketing.automizely.com` or `.io`.
+  - AfterShip One Portal relation: `aftershipOnePortal` remote supplies `UnifiedHomepage`, `MiniOnboarding`, `OnboardingAutoPopupRenderer`, and `PendoIntegration` used by `src/pages/Home/Home.tsx`, `src/components/MiniOnboardingHost/**`, `src/components/OnboardingPopupAutoHost/**`, and `src/App.tsx`.
+  - Notification history is also embedded in shipment/order details: shipment timeline stats call `useNotificationHistory` from `aftershipNotification`; order/shipment detail sheets import all-in-one email/SMS send modals from `aftershipNotification`.
+- Build-time dependencies:
+  - `package.json` scripts: `build` runs `yarn gen && vite build && node scripts/html.js`; `dev` runs schema/type generation, Vite dev server, and pixel-tag watcher; `gen` fetches schema through `graphee-client` and GraphQL Codegen.
+  - `README.md` states `yarn gen` depends on `clime auth login` because `graphee-client codegen fetch` pulls schema from the schema platform.
+  - `Jenkinsfile` identifies frontend flow, app/repo `admin.aftership.com`, Node `nodejs-16.16.0`, staging/release/production enabled, and unit test `CI=true yarn test`.
+- Shared packages:
+  - Runtime/MF shared packages are listed in `mf.config.js`; local code also depends heavily on React Router 5, Redux/Saga, Apollo, React Query, i18next/react-i18next, axios, AHA, and product-auth.
+- Inferred but unconfirmed:
+  - `platform_notification` likely maps to the Platform Notification/AIO notification frontend ecosystem, but this repo alone does not prove the canonical GitHub repo name. Existing sibling reports show `aio-notification` and `aftership-os-notification` both wrap or relate to Platform Notification surfaces.
+  - The `admin-marketing` remote/package likely maps to `marketing.automizely.com`, supported by the completed sibling report, but this checkout itself only proves the remote CDN path and package dependency.
+  - Source repos for `aftership_billing_ui`, `aftership_navigation`, `aftership_accounts_widgets`, `aftership_platform_widgets`, `comments_widgets`, `analytiker_editor_aftership`, and `admin_platform_reviews` are not proven by this checkout.
+
+## Business Flows
+- flow_id: `admin_tracking_shell`
+  - role: Provides standalone and Admin Host embedded AfterShip Tracking Admin shell, global providers, navigation, billing, notifications center, comments, onboarding, Sentry/Meerkat, and route composition.
+  - upstream/downstream repos: Upstream/peer Admin Host runtime through `@aftership/admin-host-runtime`; downstream remotes include AftershipNavigation, billing/accounts/platform widgets, comments, AfterShip One Portal, and notification remotes.
+
+- flow_id: `module_federation_admin_tracking`
+  - role: Exposes `admin_tracking` root app and shipments app for host consumption while acting as a host for many remotes.
+  - upstream/downstream repos: Downstream remotes are `platform_notification`/`aio_notification` depending branch, `admin-marketing`, billing, accounts, navigation, platform widgets, integrations, comments, reviews, analytiker, perks, and AfterShip One Portal.
+
+- flow_id: `legacy_notifications_admin`
+  - role: Owns legacy `/notifications/setting`, `/notifications/webhooks`, `/notifications/record`, email/SMS template edit, send-from settings, notification upgrade UI, webhook config, notification history filters/export/detail, and legacy workflow/email-template operations.
+  - upstream/downstream repos: Uses AfterShip Admin REST/GraphQL endpoints and selected `aftershipNotification` helpers/components for billing gates, history hooks, modals, SMS registration, and feature status.
+
+- flow_id: `ens_all_in_one_notifications`
+  - role: Hosts new `/ens` notification experience by wrapping remote Flow/Email/SMS components with Admin-specific RBAC, routes, save bars, onboarding events, billing gates, custom status transformations, and migration redirects from old `/notifications/setting` paths.
+  - upstream/downstream repos: `aftershipNotification` remote is the core UI provider; lower-level likely remotes include admin-flow, admin-email, admin-sms, admin-marketing-basic/billing/data, and Platform Notification backend/BFF, but exact source repo mapping must be confirmed outside this checkout.
+
+- flow_id: `marketing_admin_integration`
+  - role: Consumes marketing promo/banner/beamer surfaces and maintains external `MARKETING_URL` links, but does not host the Marketing Admin application itself.
+  - upstream/downstream repos: `marketing` MF remote/CDN, `@aftership/admin-marketing` npm package, and `marketing.automizely.com` as the likely source repo per sibling report.
+
+- flow_id: `aftership_one_portal_home_onboarding`
+  - role: Uses AfterShip One Portal remote for unified homepage, mini onboarding, auto onboarding popup, and Pendo bootstrap when not running inside Admin Host.
+  - upstream/downstream repos: `aftershipOnePortal` remote from `admin.aftership.* /home/v2/remoteEntry.js`; this repo provides callbacks for connect store, sync order, install guide, navigation, and slots.
+
+- flow_id: `shipment_notification_actions`
+  - role: In shipments/orders detail surfaces, retrieves notification history stats and opens all-in-one email/SMS send modals through `aftershipNotification`.
+  - upstream/downstream repos: Shipment/order local pages, AfterShip Admin GraphQL tracking detail queries, and `aftershipNotification` history/send-modal APIs.
+
+## Important Entrypoints
+- path: `package.json`
+  - why it matters: Defines project name, scripts, dependency surface, Vite/MF/typegen packages, and notification/marketing/editor direct dependencies.
+- path: `README.md`
+  - why it matters: Documents the app as the administration UI, local dependency install, `clime` auth requirement for schema generation, and common test/build scripts.
+- path: `Jenkinsfile`
+  - why it matters: CI/deploy identity for app/repo `admin.aftership.com`, frontend pipeline, Node version, test command, and staging/release/production capability.
+- path: `vite.config.js`
+  - why it matters: Main build config: public paths, APP_NAME path mapping, Vite plugins, MF plugin/typegen, aliases, dev server, and output layout.
+- path: `mf.config.js`
+  - why it matters: Authoritative MF identity, exposes, remotes, CDN env mapping, shared singleton packages, and runtime plugin.
+- path: `src/index.ts`
+  - why it matters: Browser entry; skips Meerkat/i18n initialization when running in Admin Host and dispatches to renderer or web app.
+- path: `src/web.ts`
+  - why it matters: Standalone root render into `#root`, sets `window.AsadminVersion`, and mounts `App`.
+- path: `src/mf-index.ts`
+  - why it matters: MF root expose using `moduleFactory`; synchronizes host base path with local React Router history.
+- path: `src/mf-shipments.tsx`
+  - why it matters: Separate shipments MF expose with standalone shipment routes and MF-specific provider stack.
+- path: `src/App.tsx`
+  - why it matters: Sentry setup, auth/org side effects, GTM/web vitals, Pendo remote bootstrap, standalone-vs-MF provider choice, OAuth/download handling, and route mount.
+- path: `src/GlobalInitialProvider/index.tsx`
+  - why it matters: Full provider stack for standalone and MF modes, including auth only in standalone and shared AHA/query/growth/billing/RBAC/Apollo/notification center/redux/message marketing/comments/onboarding/shopify/copilot providers.
+- path: `src/frames/Admin/index.tsx`
+  - why it matters: Admin frame composition and Admin Host bridge: `updateNavigation`, `mountSecondaryMenuToTopBar`, fallback `AftershipNavigation`, billing toasts, tours, secondary menu, NotifyHub, onboarding and copilot.
+- path: `src/routes/AdminRoutes.tsx`
+  - why it matters: Primary route graph, legacy notification paths, `/ens` all-in-one wrappers, migration redirect logic, editor full-screen routes, and MF billing wrapper.
+- path: `src/components/Navigation/hooks/useMainNavigation.tsx`
+  - why it matters: Main nav switches notification destination between `/notifications/setting` and `/ens/flows` based on `useIsAllinoneEmail`, and builds notification subnav.
+- path: `src/pages/Notifications/**`
+  - why it matters: Legacy notification settings/history/webhooks implementation and GraphQL operation documents.
+- path: `src/pages/Ens/**`
+  - why it matters: New all-in-one notification wrappers around `aftershipNotification` business components.
+- path: `src/pages/Notifications/Setting/hooks/useIsAllinoneEmail.ts`
+  - why it matters: Reads `aftershipNotification.useIsAllInOne` with a fallback and caches all-in-one state in localStorage.
+- path: `src/utils/apollo.ts`, `src/utils/network.js`, `config/env.js`
+  - why it matters: Runtime API endpoints, auth/org/account headers, AfterShip REST and GraphQL clients, Automizely GraphQL client, and environment URL mapping.
+- path: `src/federationRemotes/**`
+  - why it matters: Local wrappers for marketing banners/beamer and perks remote with error boundaries.
+- path: `src/typings/aftership-one-portal/**`, `src/typings/marketing/**`
+  - why it matters: Declares consumed remote module contracts for AfterShip One Portal and marketing banner remotes.
+
+## Evidence
+- file_or_command: `sed -n '1,240p' NOTIFICATION_REPO_MAP_RESEARCH.md`
+  - finding: Confirmed required Per-Repo Research Output Schema, branch-track rules, and evidence rules.
+- file_or_command: `sed -n '1,260p' repo-research/INDEX.md`
+  - finding: `admin.aftership.com` was pending, local checkout found, and no active subagent owned this report.
+- file_or_command: `git -C /Users/wb.chen/Documents/AfterShip/admin.aftership.com remote -v`
+  - finding: `origin` points to the user fork and `upstream` points to `AfterShip/admin.aftership.com.git`.
+- file_or_command: `git show -s --format=... HEAD`
+  - finding: Current checkout was `feat/exception-agent` at `6ed94fb55e...`, commit date `2026-06-01`, merge from `master`.
+- file_or_command: targeted `git show-ref` checks for branch candidates
+  - finding: `upstream/master`, `upstream/feat/flow-v3-polaris-v13`, and `upstream/feat/flow-v3` exist; `upstream/master_v9` does not.
+- file_or_command: `git log -1 --format=... upstream/master upstream/feat/flow-v3-polaris-v13 upstream/feat/flow-v3`
+  - finding: Recorded current local remote-tracking SHAs and dates for production and active-major branches.
+- file_or_command: `package.json`
+  - finding: Project name is `admin.aftership.com`; scripts use Vite, GraphQL generation, Jest/Cypress, deploy/upload; dependencies include admin-host-runtime, product auth, AHA, datacat, emailcat, admin-marketing, navigation, upload-center, and MF packages.
+- file_or_command: `README.md`
+  - finding: Describes the app as AfterShip admin UI and documents `clime auth login` requirement for GraphQL schema generation.
+- file_or_command: `Jenkinsfile`
+  - finding: CI metadata identifies app/repo `admin.aftership.com`, frontend flow, Node 16.16.0, staging/release/production enabled, and unit test `CI=true yarn test`.
+- file_or_command: `vite.config.js`
+  - finding: Vite config computes public paths for `admin.aftership.com`, `admin.aftership.com_tracking`, company tracking, and analytics renderer; installs MF plugin and MF typegen.
+- file_or_command: `mf.config.js`
+  - finding: Defines `name: 'admin_tracking'`, `filename: 'remoteEntry.js'`, remotes, exposes, shared packages, and `i18nResolvePlugin`.
+- file_or_command: `git show upstream/master:mf.config.js`
+  - finding: `upstream/master` aligns with current branch on `admin_tracking` and `platform_notification`.
+- file_or_command: `git show upstream/feat/flow-v3-polaris-v13:mf.config.js`
+  - finding: Active-major preferred branch uses `platform_notification` pinned to release-incy CDN.
+- file_or_command: `git show upstream/feat/flow-v3:mf.config.js`
+  - finding: Fallback active branch uses `aio_notification@.../aio-notification/remoteEntry.js`, not `platform_notification`.
+- file_or_command: `src/index.ts`, `src/web.ts`
+  - finding: Standalone bootstrap initializes Meerkat/i18n outside Admin Host and renders `App` to `#root`.
+- file_or_command: `src/mf-index.ts`
+  - finding: Root MF expose uses `moduleFactory({ MainApp: App })`, sets/unsets `AsadminVersion`, and syncs host base path from `getBasePath('aftership')`.
+- file_or_command: `src/mf-shipments.tsx`
+  - finding: Shipments MF expose wraps shipment routes with `GlobalInitialProviderForMF`, `BillingMFProvider` from `aftershipNotification`, and Admin frame.
+- file_or_command: `src/App.tsx`
+  - finding: Detects Admin Host, switches provider mode, disables standalone Sentry/Pendo responsibilities inside host where appropriate, and imports `aftershipOnePortal/PendoIntegration`.
+- file_or_command: `src/GlobalInitialProvider/index.tsx`
+  - finding: Standalone provider stack includes AuthProvider; MF stack omits standalone auth but keeps AHA/query/growth/billing/RBAC/Apollo/notification center/redux/message marketing/comments/onboarding/shopify/copilot wrappers.
+- file_or_command: `src/GlobalInitialProvider/WrapMessageMarketing.tsx`
+  - finding: Wraps app with `aftershipNotification.BasicDependenciesProvider` for non-company mode using `productCode="aftership"` and `settingsPath="/settings/ens"`.
+- file_or_command: `src/GlobalInitialProvider/WrapNotificationCenter.tsx`
+  - finding: Consumes `NtcProvider`, `Popup`, and `PopupSurvey` from `AftershipNavigation`.
+- file_or_command: `src/frames/Admin/index.tsx`
+  - finding: Uses `isRunInAdminHost`, `updateNavigation` through hook, and `mountSecondaryMenuToTopBar`; falls back to `AftershipNavigation` when not in Admin Host.
+- file_or_command: `src/utils/history.js`
+  - finding: Creates React Router history with `/tracking` basename and calls `provideAppHistory(AppCodeMap.aftership, history)`.
+- file_or_command: `src/routes/AdminRoutes.tsx`
+  - finding: Declares legacy `/notifications/...` routes, new `/ens/...` routes, all-in-one redirects, full-screen editor routes, and imports `BillingMFProvider`/`CommonSettingsRouters` from `aftershipNotification`.
+- file_or_command: `src/components/Navigation/hooks/useMainNavigation.tsx`
+  - finding: Notification nav switches to `/ens/flows` for all-in-one orgs and otherwise `/notifications/setting`; subnav includes flows/templates, webhooks, and history.
+- file_or_command: `src/pages/Notifications/graphql/notification.graphql`
+  - finding: Local legacy operations cover notification history/detail, webhook config/create/update/test/delete, branding/config/SMS config, export, and webhook config update.
+- file_or_command: `src/pages/Notifications/graphql/notificationFlow.graphql`
+  - finding: Local legacy operations cover workflows, workflow create/update/delete/enable/rename, default workflow enable, email templates, and email workflow duplicate.
+- file_or_command: `src/pages/Ens/*.tsx`
+  - finding: ENS pages are wrappers over `aftershipNotification` exports such as `FlowList`, `FlowEditor`, `FlowTemplates`, `EmailVariantEditor`, `SMSVariantEditor`, `EmailTemplates`, `CustomTemplateEditor`, `ContentGroupReport`, and `SmsSetting`.
+- file_or_command: `src/pages/Notifications/Setting/hooks/useIsAllinoneEmail.ts`
+  - finding: Uses `aftershipNotification.useIsAllInOne` with a fallback and localStorage cache to drive migration/nav behavior.
+- file_or_command: `src/utils/network.js`
+  - finding: Axios clients attach auth and organization headers; `callAftership` targets `AFTERSHIP_API`, while billing/business/postmen clients target separate env URLs.
+- file_or_command: `src/utils/apollo.ts`
+  - finding: Apollo clients attach auth/org/account headers and target `AFTERSHIP_GRAPHQL_URL` and `AUTOMIZELY_GRAPHQL_URL`.
+- file_or_command: `config/env.js`
+  - finding: Maps AfterShip REST/GraphQL, Automizely GraphQL, BFF domains, notification-center API, marketing URL, billing, postmen, business, platform env, and MF domains.
+- file_or_command: `src/federationRemotes/AdBanner/AdBanner.tsx`, `BannerCarousel.tsx`, `InitBeamerWrapper.tsx`
+  - finding: Local wrappers consume `@aftership/admin-marketing` banner/carousel/beamer surfaces.
+- file_or_command: `src/pages/Home/Home.tsx`, `src/components/MiniOnboardingHost/MiniOnboardingHost.tsx`, `src/components/OnboardingPopupAutoHost/OnboardingPopupAutoHost.tsx`
+  - finding: Home/onboarding surfaces consume `aftershipOnePortal/UnifiedHomepage` and `aftershipOnePortal/MiniOnboarding`.
+- file_or_command: `src/pages/Shipments/.../useNotificationStats.ts`, `src/pages/Orders/components/ShipmentDetailsSheet/ShipmentDetailsSheet.tsx`
+  - finding: Shipment/order detail surfaces consume `aftershipNotification` notification history and all-in-one send email/SMS modals.
+- file_or_command: `rg -n "aftership_os_notification|os-notification" src config mf.config.js package.json`
+  - finding: No direct `aftership-os-notification`/`aftership_os_notification` source reference was found in this repo during targeted searches; relationship is indirect.
+
+## Open Questions
+- question: What is the canonical source repo for the `platform_notification` remote consumed by current/master `aftershipNotification`?
+  - why it matters: This repo proves the remote global/CDN path; sibling reports show `aio-notification` and `aftership-os-notification` relationships, but final map should avoid collapsing them without authoritative ownership evidence.
+- question: Should new notification work target `upstream/master`, `upstream/feat/flow-v3-polaris-v13`, or another integration branch?
+  - why it matters: Protocol resolves active major to `feat/flow-v3-polaris-v13`, but current checkout is `feat/exception-agent`, master uses environment-based `platform_notification`, and `feat/flow-v3` still uses `aio_notification`.
+- question: Which exact source repos own `aftership_billing_ui`, `aftership_navigation`, `aftership_accounts_widgets`, `aftership_platform_widgets`, `comments_widgets`, `analytiker_editor_aftership`, and `admin_platform_reviews`?
+  - why it matters: They are concrete runtime dependencies of this host, but this checkout only exposes remote names and CDN paths.
+- question: What is the current migration boundary between legacy `/notifications/...` pages and new `/ens/...` all-in-one routes?
+  - why it matters: Some local legacy pages still own settings/history/webhooks and GraphQL operations, while `/ens` wrappers defer core UI to `aftershipNotification`; change routing depends on the user's org state and target feature.
+- question: Is `marketing` remote source always `marketing.automizely.com` for all branch tracks and environments?
+  - why it matters: This repo proves `admin-marketing/remoteEntry.js` and `@aftership/admin-marketing`, while the sibling report provides the stronger repo mapping.

@@ -1,0 +1,205 @@
+# bff-api.automizely.com_marketing_public
+
+## Summary
+- project_id: `bff-api.automizely.com_marketing_public`
+- repo_name: `bff-api.automizely.com_marketing_public`
+- upstream_url: `https://github.com/AfterShip/bff-api.automizely.com_marketing_public`
+- local_path: `/Users/wb.chen/Documents/AfterShip/bff-api.automizely.com_marketing_public`
+- repo_type: Node.js/TypeScript BFF; Koa + Apollo GraphQL API service.
+- confidence: high for local source facts; medium for internal service-to-repo ownership because this checkout exposes service domains, not owning repo names.
+
+## Responsibility
+- Owns:
+  - Marketing public BFF HTTP/API layer under `basicPath: /marketing/public`.
+  - Apollo GraphQL schema/resolvers for public storefront/customer flows: conversions settings, recommended products, product lookup, back-in-stock settings, SMS compliance, email/SMS subscription preference updates, double opt-in confirmation, search, BTP reviews, and translation.
+  - Aggregation and shaping of downstream service responses for storefront-facing marketing features.
+  - Countdown GIF endpoint `/marketing/public/getCountdown/:config`, including worker-based GIF rendering and short-lived in-memory cache.
+- Does not own:
+  - Marketing backend services such as conversions/convtools, mt-flow, forms, mktgmsg automations, or store-common-settings.
+  - Subscription backend state for email/SMS preferences and confirmed opt-in.
+  - Messages/SMS phone number ownership.
+  - Billing entitlements, connector product catalog/webpixels, recommendation engine, search, shopping, translator, reviews, or shipments services.
+  - Admin frontend, SDK, Module Federation remotes, email template authoring, or actual campaign email sending/rendering.
+- Common change areas:
+  - `graphql/**/*.graphql` for public GraphQL contract changes.
+  - `src/datasources/**/{service,controller,resolver}.ts` for downstream API adapters and resolver behavior.
+  - `config/*.js` for downstream service prefixes.
+  - `src/routes/index.ts`, `src/services/countdown.ts`, `src/worker/countdown.worker.js`, and `src/resources/*.ttf` for countdown GIF behavior/assets.
+  - `src/utils/RESTDataSourceBasic.ts` and `src/middlewares/handleOrganizationHeader.ts` for request header propagation and org/app context resolution.
+
+## Branch Tracks
+- production: `master` exists locally and in local remote-tracking refs: `refs/heads/master`, `refs/remotes/origin/master`, `refs/remotes/upstream/master`. Local `master` tracks `origin/master`.
+- legacy_v9: `master_v9` was not found in local heads or local remote-tracking refs.
+- active_major: `feat/flow-v3-polaris-v13` and `feat/flow-v3` were not found in local heads or local remote-tracking refs.
+- repo_specific_notes:
+  - Local branch refs include `master` and `feat/improve-countdown-timer`; remote-tracking refs include several `origin/feat/*` and `origin/hotfix/*` branches plus `origin/master` and `upstream/master`.
+  - `origin` is the user fork (`git@github.com:Wynne-cwb/bff-api.automizely.com_marketing_public.git`); `upstream` is AfterShip (`git@github.com:AfterShip/bff-api.automizely.com_marketing_public.git`).
+  - `origin/master`/local `master` were at `08b6830`; local `upstream/master` was at `6aae35b`. No network fetch was performed, so freshness is unknown.
+  - `.github/workflows/pr-check.yaml` accepts PRs targeting `feat/*`, `hotfix/*`, `release/*`, `testing`, `staging`, and `master`; title check expects ticket prefixes such as `ASE`, `CVS`, `TSEC`, `TPDG`, `REC`, `TSPR`, or hotfix/release wording.
+
+## Module Federation
+- enabled: false.
+- exposes: none found.
+- remotes: none found.
+- shared_packages: not applicable; no Module Federation config was found.
+- branch_alignment: not applicable for this Node BFF. Local search for Module Federation / webpack federation / exposes / remotes patterns returned no source matches outside ignored build and dependency artifacts.
+
+## Team Repo Dependencies
+- Direct dependencies:
+  - `@aftership/config-center-sdk` from `package.json`; used by `src/services/configCenter.ts` to load internal config and Automizely API key.
+  - `@aftership/nodejs-common` from `package.json`; `src/datasources/recommendedSettings/service.ts` imports `getMappedOrgId`.
+  - No direct package dependency on the queued frontend/MF repos was found in `package.json`.
+- Runtime calls:
+  - `MARKETING_API_PREFIX` / production `prod-mt-convtools`: `/internal/conversions-connections`, `/internal/forms`, `/internal/forms/notification-registration`, `/internal/mktgmsg/automations/back-in-stock`, and `/internal/mktgmsg/automations/back-in-stock/{id}`.
+  - `MARKETING_PUBLISH_API_PREFIX` / production `prod-mt-convtools`: `/internal/storefront/settings` and `/internal/store-common-settings`.
+  - `MARKETING_NEW_API_PREFIX` / production `prod-mt-flow`: `/flows/internal/marketing-flows` with `scenario: back-in-stock`, `status: enable`, and `from-cache: true`.
+  - `SUBSCRIPTION_API_PREFIX` / production `prod-oc-subscription`: `/subscription/internal/email-preferences/extract-subscription-token.action`, `/subscription/internal/email-preferences/update.action`, `/subscription/internal/sms-preferences/extract-subscription-token.action`, `/subscription/internal/sms-preferences/update.action`, `/subscription/internal/subscriptions/handle-confirmed-opt-in.action`, and `/subscription/internal/subscriptions/handle-sms-confirmed-opt-in.action`.
+  - `MESSAGE_API_PREFIX` / production `pltf-messages`: `/sms/marketing-phone-numbers` with `product_code: conversions` and current organization id.
+  - `CONNECTION_PLATFORM_API_PREFIX` / production `pltf-connectors`: `/products` and `/webpixels`.
+  - `BILLING_API_PREFIX` / production `prod-bl-billing`: `internal/subscribed-objects` for feature gates such as `back_in_stock_email` and `onsite_recommendation`.
+  - `DATA_API_PREFIX` and `DATA_RECOMMENDATION_API_PREFIX` / production `data-recommendation`: `/items` for recommendation products/settings.
+  - `SEARCH_API_PREFIX`: `/public/collections`, `/public/products`, `/public/metrics`; `getSearchSettings` exists but is commented out in the current controller path.
+  - `SHOPPING_API_PREFIX`: `/internal/conversions-connections/{app_connection_id}` for shopping settings.
+  - `TRANSLATOR_API_PREFIX`: `translate` for `translateLanguage`.
+  - `REVIEWS_SHARED_DOMAIN_API_PREFIX` plus `AS_SHIPMENTS_API_PREFIX`: BTP review read/create flows first look up shipment data by tracking id, then call reviews shared-domain APIs.
+- Build-time dependencies:
+  - `Jenkinsfile` uses AfterShip shared Jenkins library `jenkins-pipeline-library@automation`, flow `nodejs`, app name `bff-api.automizely.com_marketing_public`, chart `nodejs-http`, and `yarn test`.
+  - `Dockerfile` uses `asia-east1-docker.pkg.dev/aftership-admin/ci-artifacts/nodejs-onbuild:nodejs-18.19.1-py-make`, installs native canvas dependencies, runs `yarn build`, exposes `9003`, and starts `node build/main.js`.
+  - `package.json` build runs GraphQL codegen, TypeScript build, build check, and copies `src/resources` plus `config` into `build`.
+- Shared packages:
+  - `@aftership/config-center-sdk`
+  - `@aftership/nodejs-common`
+  - Apollo/Koa/GraphQL packages are framework dependencies, not team repo dependencies.
+- Inferred but unconfirmed:
+  - Service domains imply dependencies on internal service repos for mt-convtools, mt-flow, oc-subscription, pltf-messages, connectors, billing, data-recommendation, search, shopping, translator, reviews, and shipments. Exact GitHub repo names for those services are not proven by this checkout.
+  - Public callers are likely storefront widgets, subscription landing pages, embedded email links, or customer-facing marketing surfaces, but caller repo names are not directly present in this source.
+
+## Business Flows
+- flow_id: `marketing_public_graphql`
+  - role: Public/customer-facing GraphQL BFF for marketing storefront features at `/marketing/public/graphql`; it loads schema from `graphql/**/*`, merges datasource resolvers, and applies Apollo middleware in Koa.
+  - upstream/downstream repos: Downstream internal services listed in `config/*.js`; upstream caller repos not confirmed in source.
+- flow_id: `email_subscription_preference`
+  - role: Extract email subscription token and update email marketing preference. GraphQL fields are `extractEmailSubscriptionToken` and `updateEmailSubscription`.
+  - upstream/downstream repos: Downstream `SUBSCRIPTION_API_PREFIX` service; exact repo unconfirmed.
+- flow_id: `email_double_opt_in`
+  - role: Handle email confirmed opt-in, then fetch email landing-page thank-you content from double opt-in settings using organization/app info derived from the token.
+  - upstream/downstream repos: Downstream subscription service and `MARKETING_PUBLISH_API_PREFIX` store-common-settings service.
+- flow_id: `sms_subscription_preference`
+  - role: Extract SMS subscription token and update SMS marketing preference. GraphQL fields are `extractSMSSubscriptionToken` and `updateSMSSubscription`.
+  - upstream/downstream repos: Downstream `SUBSCRIPTION_API_PREFIX` service; exact repo unconfirmed.
+- flow_id: `sms_double_opt_in_and_compliance`
+  - role: Handle SMS confirmed opt-in and expose `SMSCompliance` phone number selection from messages service.
+  - upstream/downstream repos: Downstream subscription service, `MARKETING_PUBLISH_API_PREFIX`, and `MESSAGE_API_PREFIX`.
+- flow_id: `back_in_stock_email`
+  - role: Provide public back-in-stock setting by checking active mt-flow scenario `back-in-stock`, notification-registration form data, legacy back-in-stock email automations, and billing entitlement `back_in_stock_email`.
+  - upstream/downstream repos: Downstream mt-flow, mt-convtools/forms/mktgmsg automations, and billing services; exact repo names unconfirmed.
+- flow_id: `conversions_storefront_settings`
+  - role: Aggregate storefront settings for bars, popups, sales boosts, social proofs, tabs, search, shopping, back-in-stock, recommendation, and contact public REST description including email subscription status.
+  - upstream/downstream repos: Downstream mt-convtools publish API, search, shopping, recommendation, billing, connectors, and organization lookup via conversions connection.
+- flow_id: `countdown_gif`
+  - role: Generate a GIF countdown image from base64 config at `/marketing/public/getCountdown/:config`; likely used by public marketing/email surfaces, but caller repo is not present in source.
+  - upstream/downstream repos: No downstream service call; local worker uses `canvas`, `gifencoder`, fonts in `src/resources`, and in-memory cache.
+
+## Important Entrypoints
+- path: `package.json`
+  - why it matters: Defines Node BFF package metadata, scripts (`dev`, `start`, `build`, `test`, `code-gen`), runtime dependencies, and AfterShip shared packages.
+- path: `config/default.js`
+  - why it matters: Sets service path prefix `/marketing/public` and default port `9003`.
+- path: `config/development.js`, `config/testing.js`, `config/production.js`
+  - why it matters: Maps every datasource prefix to environment-specific internal service domains.
+- path: `src/main.ts`
+  - why it matters: Process entrypoint; generates types in development, loads New Relic in production/testing, starts Koa HTTP server, and starts Grafana metrics in production/testing.
+- path: `src/app.ts`
+  - why it matters: Koa composition; starts both Apollo servers, installs middleware, mounts `/marketing/public/graphql` and `/marketing/public/public/graphql`, registers REST routes, and starts the countdown worker.
+- path: `src/apolloServer.ts`
+  - why it matters: Apollo server factory; attaches schema, resolvers, datasources, organization context, error formatting, tracing/metrics/logging/cache plugins, playground/landing behavior, and New Relic plugin.
+- path: `src/schema.ts`
+  - why it matters: Loads and merges GraphQL schema files; main schema includes common/type/input/query/mutation files while public schema currently includes common files and `publicQuery.graphql`.
+- path: `src/resolvers.ts`
+  - why it matters: Dynamically discovers and merges every `src/datasources/**/resolver.ts`.
+- path: `src/publicResolver.ts`
+  - why it matters: Public resolver map is currently effectively empty except commented stub, while `graphql/publicQuery.graphql` defines `onboarded`.
+- path: `graphql/query.graphql`, `graphql/mutation.graphql`
+  - why it matters: Top-level GraphQL API contract for storefront settings, subscription preferences, double opt-in, SMS compliance, search, reviews, and translation.
+- path: `src/datasources/emailPreference/*`
+  - why it matters: Implements email token extraction, email preference update, and email double opt-in confirmation.
+- path: `src/datasources/smsPreference/*`
+  - why it matters: Implements SMS token extraction, SMS preference update, and SMS double opt-in confirmation.
+- path: `src/datasources/doubleOptIn/*`, `graphql/common/doubleOptIn.graphql`, `graphql/conversionsSettings/input.graphql`
+  - why it matters: Fetches double opt-in landing page content from store common settings by org/app.
+- path: `src/datasources/message/*`, `graphql/message/type.graphql`
+  - why it matters: Exposes SMS compliance phone number from messages service.
+- path: `src/datasources/backInStock/*`, `graphql/backInStock/type.graphql`
+  - why it matters: Aggregates active flow, notification registration form, legacy email automation, and billing feature for back-in-stock public settings.
+- path: `src/datasources/conversionsSettings/*`, `graphql/conversionsSettings/*`
+  - why it matters: Main storefront settings aggregation layer and entry to several downstream feature settings.
+- path: `src/utils/RESTDataSourceBasic.ts`
+  - why it matters: Shared REST adapter; resolves baseURL from config prefix, injects API keys, org/app/connection headers, trace headers, and response logging.
+- path: `src/middlewares/handleOrganizationHeader.ts`
+  - why it matters: Uses `conversions-connection-id` to fetch organization/app context and populate request headers for downstream datasources.
+- path: `src/routes/index.ts`, `src/services/countdown.ts`, `src/worker/countdown.worker.js`
+  - why it matters: Non-GraphQL countdown GIF endpoint and worker implementation.
+- path: `Jenkinsfile`, `Dockerfile`, `.github/workflows/pr-check.yaml`
+  - why it matters: CI/deployment identity, runtime image, build/test command, exposed port, and PR branch/title policy.
+
+## Evidence
+- file_or_command: `sed -n '1,240p' /Users/wb.chen/Documents/Project/skills/NOTIFICATION_REPO_MAP_RESEARCH.md`
+  - finding: Confirmed required Per-Repo Research Output Schema, branch-track rules, evidence rules, and read-only/subagent protocol.
+- file_or_command: `sed -n '1,260p' repo-research/INDEX.md`
+  - finding: Target repo was `pending`, local checkout path was recorded, remotes looked fork-first, and no active subagent owned this report.
+- file_or_command: `git -C ... remote -v`
+  - finding: `origin` points to `git@github.com:Wynne-cwb/...`; `upstream` points to `git@github.com:AfterShip/...`.
+- file_or_command: `git branch --all --no-color`; `git show-ref -- refs/remotes/origin/master refs/remotes/upstream/master ...`
+  - finding: Local checkout has `master`, `origin/master`, and `upstream/master`; no local/tracking refs for `master_v9`, `feat/flow-v3-polaris-v13`, or `feat/flow-v3`.
+- file_or_command: `README.md`
+  - finding: Describes this as a Node.js BFF service layer built on Apollo GraphQL, with health check `/whoami` and `yarn dev`/`yarn build` workflows.
+- file_or_command: `package.json`
+  - finding: Package name is boilerplate-like, but scripts and dependencies show TypeScript Node BFF with Apollo/Koa/GraphQL, `@aftership/config-center-sdk`, and `@aftership/nodejs-common`.
+- file_or_command: `config/default.js`
+  - finding: Default port is `9003`; `basicPath` is `/marketing/public`.
+- file_or_command: `config/production.js`
+  - finding: Production runtime prefixes include `prod-mt-convtools`, `prod-mt-flow`, `pltf-messages`, `prod-oc-subscription`, `pltf-connectors`, `prod-bl-billing`, `data-recommendation`, `prod-search`, `prod-sp-apiserver`, `pltf-translator`, `reviews-shared-domain`, and `prod-as-shipments`.
+- file_or_command: `src/main.ts`
+  - finding: Starts HTTP server, generates GraphQL types in development, loads New Relic in production/testing, and starts Grafana metrics in production/testing.
+- file_or_command: `src/app.ts`
+  - finding: Mounts Apollo GraphQL at `/marketing/public/graphql` and `/marketing/public/public/graphql`, installs upload/trace/whoami middleware, REST routes, 404 handler, and countdown worker.
+- file_or_command: `src/apolloServer.ts`
+  - finding: Apollo server uses merged schema/resolvers, datasources, `handleOrganizationHeader`, error formatter, tracing/metrics/logging/cache plugins, and New Relic plugin.
+- file_or_command: `src/schema.ts`, `src/resolvers.ts`, `src/datasources/index.ts`
+  - finding: Main schema is loaded from `graphql/**`; datasource resolvers are auto-discovered and merged; datasource map includes product, organization, recommend, backInStock, billing, form, flow, message, conversionsSettings, searchSettings, shoppingSettings, emailPreference, smsPreference, btpReviews, translate, doubleOptIn, and asShipments.
+- file_or_command: `graphql/query.graphql`, `graphql/mutation.graphql`
+  - finding: Public GraphQL contract exposes subscription token extraction/update, email/SMS double opt-in mutations, SMS compliance, back-in-stock settings, conversions settings, search, BTP reviews, recommendation, product, and translation APIs.
+- file_or_command: `src/datasources/emailPreference/service.ts`, `src/datasources/emailPreference/controller.ts`, `src/datasources/emailPreference/resolver.ts`
+  - finding: Email preference flow posts to subscription internal email-preferences endpoints and confirmed opt-in endpoint; controller also fetches double opt-in page settings after successful confirmed opt-in.
+- file_or_command: `src/datasources/smsPreference/service.ts`, `src/datasources/smsPreference/controller.ts`, `src/datasources/smsPreference/resolver.ts`
+  - finding: SMS preference flow mirrors email with sms-preferences endpoints and SMS confirmed opt-in endpoint.
+- file_or_command: `src/datasources/doubleOptIn/service.ts`
+  - finding: Double opt-in content comes from `MARKETING_PUBLISH_API_PREFIX` `/internal/store-common-settings` with organization/app headers.
+- file_or_command: `src/datasources/message/service.ts`, `src/datasources/message/controller.ts`
+  - finding: SMS compliance reads messages API `/sms/marketing-phone-numbers` and returns toll-free phone number before long code fallback.
+- file_or_command: `src/datasources/backInStock/service.ts`
+  - finding: Back-in-stock checks mt-flow `back-in-stock`, notification-registration forms, legacy `mktgmsg/automations/back-in-stock` email automation, and billing feature `back_in_stock_email`.
+- file_or_command: `src/datasources/conversionsSettings/controller.ts`
+  - finding: Conversions settings aggregates storefront data, search/shopping/recommendation/back-in-stock settings, filters published popups, and exposes email subscription status through GraphQL type.
+- file_or_command: `src/utils/RESTDataSourceBasic.ts`
+  - finding: All REST datasources resolve baseURL from `apiPrefixConfigName`, replace `:version`, and inject API/organization/app/trace headers.
+- file_or_command: `src/middlewares/handleOrganizationHeader.ts`
+  - finding: `conversions-connection-id` can be resolved via marketing API to populate `Am-Organization-Id`, `am-app-key`, `am-app-name`, and `am-app-platform`.
+- file_or_command: `src/routes/index.ts`, `src/services/countdown.ts`, `src/worker/countdown.worker.js`
+  - finding: `/getCountdown/:config` validates base64 config, returns `image/gif`, and delegates GIF rendering/caching to worker code using `canvas`/`gifencoder`.
+- file_or_command: `rg -n --glob '!node_modules' --glob '!build' "ModuleFederation|module-federation|webpack|vite|exposes|remotes|shared:|single-spa|qiankun|federation|mf-manifest" .`
+  - finding: No Module Federation or frontend bundler federation evidence was found in source files.
+- file_or_command: `Jenkinsfile`, `Dockerfile`, `.github/workflows/pr-check.yaml`
+  - finding: Confirms CI/deploy app identity, Node HTTP chart, Docker runtime/build behavior, and PR target/title policy.
+
+## Open Questions
+- question: Which exact GitHub repositories own the downstream services behind `prod-mt-convtools`, `prod-mt-flow`, `prod-oc-subscription`, `pltf-messages`, and the other service domains?
+  - why it matters: The source proves runtime service calls, but repo-to-service ownership needs another evidence source before writing a stable project map relationship.
+- question: Is `/marketing/public/public/graphql` still intended to be used?
+  - why it matters: `src/app.ts` mounts a second Apollo public server, but `src/publicResolver.ts` is effectively empty and `graphql/publicQuery.graphql` only defines `onboarded`.
+- question: Are `master_v9` or active major branches present in the real remote but absent from this local checkout?
+  - why it matters: No network fetch/search was performed per instruction, so branch-track absence is only proven for local refs.
+- question: Why is local `origin/master` ahead/different from local `upstream/master` in current refs?
+  - why it matters: Future edits should start from the resolved upstream base branch; current local fork refs may include commits not visible in the stale local `upstream/master` ref.
+- question: Which storefront/frontend/email-rendering callers consume `conversionsSettings`, subscription preference endpoints, double opt-in endpoints, and countdown GIF links?
+  - why it matters: This repo exposes the public BFF surface, but caller repo names are not directly referenced in the checkout.
