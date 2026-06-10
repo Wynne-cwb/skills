@@ -20,10 +20,36 @@ branch_tracks:
       - feat/flow-v3-polaris-v13
       - feat/flow-v3
 
+domain_conventions:
+  admin_aftership:
+    audience: "External B-side merchant admin products."
+    testing: "https://admin.aftership.io"
+    release_pattern: "https://<release>-admin.aftership.io"
+    staging: "https://staging-admin.aftership.com"
+    production: "https://admin.aftership.com"
+  admin_automizely:
+    audience: "Internal admin/operations products."
+    testing: "https://admin.automizely.me"
+    release_pattern: "https://<release>-admin.automizely.me"
+    staging: "https://staging-admin.automizely.org"
+    production: "https://admin.automizely.org"
+  sdks_am_static:
+    audience: "Module Federation JavaScript/static assets."
+    testing: "https://sdks.am-static.io"
+    release_pattern: "https://<release>-sdks.am-static.io"
+    staging: "https://staging-sdks.am-static.com"
+    production: "https://sdks.am-static.com"
+
 projects:
   - id: sdks.automizely.com_conversions
     name: Storefront Conversions SDK
     type: frontend-sdk
+    aliases:
+      - conversions
+      - conversions sdk
+      - storefront conversions
+      - storefront marketing sdk
+      - marketing conversion tools sdk
     repo_name: sdks.automizely.com_conversions
     upstream: https://github.com/AfterShip/sdks.automizely.com_conversions.git
     default_branch: master
@@ -34,6 +60,14 @@ projects:
     module_federation:
       enabled: false
     packages: []
+    urls:
+      - https://sdks.automizely.com
+      - https://sdks.automizely.io
+    business_aliases:
+      - Marketing Conversion Tools
+      - Conversion Tools
+      - Storefront SDK
+      - Shopify web pixel
     responsibility: "Storefront Automizely Marketing/Conversions browser SDK bundles, Shopify extensions, signup widgets, back-in-stock registration, popup bars, social proof, recommendation display, and public BFF wiring."
     related_projects:
       - bff-api.automizely.com_marketing_public
@@ -50,6 +84,11 @@ projects:
   - id: bff-api.automizely.com_marketing_public
     name: Marketing Public BFF
     type: bff
+    aliases:
+      - marketing public bff
+      - public marketing bff
+      - c-side marketing bff
+      - no-jwt marketing bff
     repo_name: bff-api.automizely.com_marketing_public
     upstream: https://github.com/AfterShip/bff-api.automizely.com_marketing_public.git
     default_branch: master
@@ -60,6 +99,15 @@ projects:
     module_federation:
       enabled: false
     packages: []
+    api_endpoints:
+      - /marketing/public/graphql
+      - /marketing/public/getCountdown
+      - /getCountdown
+    business_aliases:
+      - Marketing C-side BFF
+      - public storefront BFF
+      - countdown gif
+      - storefront settings
     responsibility: "Public storefront/customer GraphQL BFF under /marketing/public for subscription preferences, double opt-in, conversions settings, back-in-stock, product lookup, SMS compliance, translation, and storefront marketing flows."
     related_projects:
       - sdks.automizely.com_conversions
@@ -77,6 +125,11 @@ projects:
   - id: admin.automizely.org_marketing-operations
     name: Legacy Marketing Operations Admin
     type: frontend
+    aliases:
+      - marketing operations
+      - old marketing operations
+      - legacy admin portal
+      - old admin portal
     repo_name: admin.automizely.org_marketing-operations
     upstream: https://github.com/AfterShip/admin.automizely.org_marketing-operations.git
     default_branch: master
@@ -88,6 +141,15 @@ projects:
       enabled: false
       micro_app: qiankun
     packages: []
+    urls:
+      - https://admin.automizely.me/marketing-operations/
+      - https://admin.automizely.me/app-marketing-operations/
+      - https://admin.automizely.org/marketing-operations/
+      - https://admin.automizely.org/app-marketing-operations/
+    business_aliases:
+      - Admin Portal
+      - Marketing Operations
+      - legacy marketing operations
     responsibility: "Legacy Automizely Marketing Operations Vue admin for internal operators, including template management, business settings, flow config, approval/risk tools, tracking migration, and efficiency tooling."
     related_projects:
       - admin.automizelyapi.org_mkt-operations
@@ -103,6 +165,11 @@ projects:
   - id: admin.automizelyapi.org_mkt-operations
     name: Marketing Operations Admin BFF
     type: bff
+    aliases:
+      - mkt operations bff
+      - admin portal bff
+      - notification admin bff
+      - mkt-operations admin graphql
     repo_name: admin.automizelyapi.org_mkt-operations
     upstream: https://github.com/AfterShip/admin.automizelyapi.org_mkt-operations.git
     default_branch: master
@@ -113,6 +180,15 @@ projects:
     module_federation:
       enabled: false
     packages: []
+    api_endpoints:
+      - /mkt-operations/admin/graphql
+    service_hosts:
+      - admin.automizelyapi.org
+      - admin.automizelyapi.me
+    business_aliases:
+      - Notification Admin Portal BFF
+      - Marketing Operations BFF
+      - Flow AI Assistant BFF
     responsibility: "NestJS GraphQL admin BFF at /mkt-operations/admin/graphql for Notification Admin Portal, flow declarations/templates, message/template assets, migration/support tools, Flow AI Assistant, and downstream notification platform APIs."
     related_projects:
       - fe-pltf-ens-admin
@@ -133,6 +209,10 @@ projects:
   - id: am-dynamic-form
     name: AM Dynamic Form
     type: library
+    aliases:
+      - dynamic form
+      - am dynamic form
+      - dynamic form renderer
     repo_name: am-dynamic-form
     upstream: https://github.com/AfterShip/am-dynamic-form.git
     default_branch: master
@@ -144,6 +224,10 @@ projects:
       enabled: false
     packages:
       - "@aftership/am-dynamic-form"
+    business_aliases:
+      - Dynamic Form
+      - B-side schema renderer
+      - trigger action settings renderer
     responsibility: "SolidJS schema-driven Dynamic Form renderer, form schema contract, component blocks, JSON schema artifact, conditional rendering, remote option loading, worker-backed scripts, and local/debug editor."
     related_projects:
       - sdk-nodejs-snap-form
@@ -159,6 +243,11 @@ projects:
   - id: bff-api.automizely.com_marketing_admin_v2
     name: Marketing Admin V2 BFF
     type: bff
+    aliases:
+      - marketing admin v2 bff
+      - notification bff
+      - marketing notification bff
+      - admin v2 graphql
     repo_name: bff-api.automizely.com_marketing_admin_v2
     upstream: https://github.com/AfterShip/bff-api.automizely.com_marketing_admin_v2.git
     default_branch: master
@@ -169,6 +258,14 @@ projects:
     module_federation:
       enabled: false
     packages: []
+    api_endpoints:
+      - /marketing/admin/v2/graphql
+    business_aliases:
+      - Notification BFF
+      - Marketing BFF
+      - B-side Notification BFF
+      - resend email
+      - resend sms
     responsibility: "NestJS GraphQL BFF at /marketing/admin/v2/graphql for notification flow v3, email/SMS content, message resources, history, settings, dynamic schema, send-test/resend/debug workflows, and downstream service orchestration."
     related_projects:
       - sdks.am-static.com_admin-flow
@@ -186,6 +283,10 @@ projects:
   - id: sdks.am-static.com_admin-marketing-billing
     name: Admin Marketing Billing SDK
     type: frontend-sdk
+    aliases:
+      - admin marketing billing
+      - notification billing
+      - billing remote
     repo_name: sdks.am-static.com_admin-marketing-billing
     upstream: https://github.com/AfterShip/sdks.am-static.com_admin-marketing-billing.git
     default_branch: master
@@ -195,9 +296,23 @@ projects:
       active_major:
     module_federation:
       enabled: true
-      remote: admin_marketing_billing
+      remote: notification_billing
+      legacy_remote: admin_marketing_billing
+      aliases:
+        - notificationBilling
+        - adminMarketingBilling
+      remote_entry_paths:
+        - /notification-billing/remoteEntry.js
+        - /admin-marketing-billing/remoteEntry.js
     packages:
       - "@aftership/admin-marketing-billing"
+    urls:
+      - https://sdks.am-static.io/notification-billing/remoteEntry.js
+      - https://sdks.am-static.com/notification-billing/remoteEntry.js
+    business_aliases:
+      - Notification billing
+      - Billing gates
+      - Flow billing gating
     responsibility: "Billing gates, feature slugs, billing providers, badges/tooltips/buttons, lock blocks/modals/banners, trial/upgrade helpers, and v1/v2 marketing/notification billing SDK surfaces."
     related_projects:
       - sdks.am-static.com_admin-marketing-basic
@@ -210,10 +325,17 @@ projects:
       - email-content-billing
       - sms-billing-gating
       - all-in-one-notification-billing
+    notes:
+      - "The npm package output is deprecated for current consumption decisions; prefer MF remote/aio-notification wiring."
 
   - id: sdks.am-static.com_admin-marketing-basic
     name: Admin Marketing Basic SDK
     type: frontend-sdk
+    aliases:
+      - admin marketing basic
+      - notification basic
+      - basic remote
+      - basic dependencies provider
     repo_name: sdks.am-static.com_admin-marketing-basic
     upstream: https://github.com/AfterShip/sdks.am-static.com_admin-marketing-basic.git
     default_branch: master
@@ -224,8 +346,22 @@ projects:
     module_federation:
       enabled: true
       remote: notification_basic
+      legacy_remote: admin_marketing_basic
+      aliases:
+        - notificationBasic
+        - adminMarketingBasic
+      remote_entry_paths:
+        - /notification-basic/remoteEntry.js
+        - /admin-marketing-basic/remoteEntry.js
     packages:
       - "@aftership/admin-marketing-basic"
+    urls:
+      - https://sdks.am-static.io/notification-basic/remoteEntry.js
+      - https://sdks.am-static.com/notification-basic/remoteEntry.js
+    business_aliases:
+      - BasicDependenciesProvider
+      - Notification basic provider
+      - shared notification runtime
     responsibility: "Shared marketing/admin runtime, BasicDependenciesProvider, common settings, sender/image/custom-font/merge-tag helpers, notification config hooks, dynamic schema rendering hooks, migration helpers, and shared UI primitives."
     related_projects:
       - bff-api.automizely.com_marketing_admin_v2
@@ -241,10 +377,16 @@ projects:
       - notification_center_sale_rule_run
     notes:
       - "A repo-specific legacy branch named feat/legacy-polaris-v9 was observed, but it is not the global legacy_v9 track."
+      - "The npm package output is deprecated for current consumption decisions; prefer MF remote/aio-notification wiring."
 
   - id: sdks.am-static.com_admin-crm
     name: Admin CRM SDK
     type: frontend-sdk
+    aliases:
+      - admin crm
+      - notification crm
+      - crm remote
+      - segments remote
     repo_name: sdks.am-static.com_admin-crm
     upstream: https://github.com/AfterShip/sdks.am-static.com_admin-crm.git
     default_branch: master
@@ -255,8 +397,23 @@ projects:
     module_federation:
       enabled: true
       remote: notification_crm
+      legacy_remote: admin_crm
+      aliases:
+        - notificationCrm
+        - adminCrm
+      remote_entry_paths:
+        - /notification-crm/remoteEntry.js
+        - /admin-crm/remoteEntry.js
     packages:
       - "@aftership/admin-crm"
+    urls:
+      - https://sdks.am-static.io/notification-crm/remoteEntry.js
+      - https://sdks.am-static.com/notification-crm/remoteEntry.js
+    business_aliases:
+      - CRM
+      - Segments
+      - Contacts
+      - Audience selector
     responsibility: "CRM contacts, contact detail/timeline/analytics, contact import/export/delete tasks, segments list/editor/detail, audience selector, segment filter rendering, and unsubscribed recipient modals."
     related_projects:
       - sdks.am-static.com_admin-marketing-basic
@@ -271,10 +428,18 @@ projects:
       - unsubscribed-recipients
       - contact-activity-timeline
       - contact-data-retention
+    notes:
+      - "The npm package output is deprecated for current consumption decisions; prefer MF remote/aio-notification wiring."
 
   - id: sdks.am-static.com_admin-email
     name: Admin Email SDK
     type: frontend-sdk
+    aliases:
+      - admin email
+      - notification email
+      - email remote
+      - email editor
+      - advanced email editor
     repo_name: sdks.am-static.com_admin-email
     upstream: https://github.com/AfterShip/sdks.am-static.com_admin-email.git
     default_branch: master
@@ -286,8 +451,25 @@ projects:
       enabled: true
       remote: notification_email
       legacy_remote: admin_email
+      aliases:
+        - notificationEmail
+        - adminEmail
+      remote_entry_paths:
+        - /notification-email/remoteEntry.js
+        - /admin-email/remoteEntry.js
     packages:
       - "@aftership/admin-email"
+    urls:
+      - https://sdks.am-static.io/notification-email/remoteEntry.js
+      - https://sdks.am-static.io/admin-email/remoteEntry.js
+      - https://sdks.am-static.com/notification-email/remoteEntry.js
+      - https://sdks.am-static.com/admin-email/remoteEntry.js
+    business_aliases:
+      - Email template editor
+      - Advanced email editor
+      - Easy Email replacement
+      - MailCraft wrapper
+      - email render package
     responsibility: "Email editor SDK/MF surfaces for templates, content groups, variants, previews, send-test modals, custom templates, easy-to-advanced migration tooling, prebuilt blocks, and server-side render helper exports."
     related_projects:
       - sdk-ts-mailcraft-editor
@@ -301,10 +483,18 @@ projects:
       - email-content-group-editor
       - notification-platform-email
       - affiliate-simple-email-editor
+    notes:
+      - "Unlike the other MF SDK packages, @aftership/admin-email remains a current Node-safe package surface for Email Renderer."
+      - "Do not put browser-only code in server.ts or other Node/server render entrypoints."
+      - "The ./migration package entry is used by fe-pltf-ens-admin."
 
   - id: sdks.am-static.com_admin-sms
     name: Admin SMS SDK
     type: frontend-sdk
+    aliases:
+      - admin sms
+      - notification sms
+      - sms remote
     repo_name: sdks.am-static.com_admin-sms
     upstream: https://github.com/AfterShip/sdks.am-static.com_admin-sms.git
     default_branch: master
@@ -315,8 +505,24 @@ projects:
     module_federation:
       enabled: true
       remote: notification_sms
+      legacy_remote: admin_sms
+      aliases:
+        - notificationSms
+        - adminSms
+      remote_entry_paths:
+        - /notification-sms/remoteEntry.js
+        - /admin-sms/remoteEntry.js
     packages:
       - "@aftership/admin-sms"
+    urls:
+      - https://sdks.am-static.io/notification-sms/remoteEntry.js
+      - https://sdks.am-static.io/admin-sms/remoteEntry.js
+      - https://sdks.am-static.com/notification-sms/remoteEntry.js
+    business_aliases:
+      - SMS editor
+      - SMS settings
+      - SMS compliance
+      - SMS send test
     responsibility: "SMS newsletter admin, flow SMS action content editor, SMS preview/send-test, SMS settings/compliance/phone-number setup, quiet hours, opt-out text, and reusable SMS hooks/components."
     related_projects:
       - bff-api.automizely.com_marketing_admin_v2
@@ -330,10 +536,17 @@ projects:
       - flow-send-test-sms
       - sms-settings-compliance
       - notification-suite-sms-remote
+    notes:
+      - "The npm package output is deprecated for current consumption decisions; prefer MF remote/aio-notification wiring."
+      - "No live master_v9 branch is known; inspect historical tags only if a Polaris v9 task appears."
 
   - id: sdks.am-static.com_admin-marketing-coupon
     name: Admin Marketing Coupon SDK
     type: frontend-sdk
+    aliases:
+      - admin marketing coupon
+      - notification coupon
+      - coupon remote
     repo_name: sdks.am-static.com_admin-marketing-coupon
     upstream: https://github.com/AfterShip/sdks.am-static.com_admin-marketing-coupon.git
     default_branch: master
@@ -344,8 +557,22 @@ projects:
     module_federation:
       enabled: true
       remote: notification_coupon
+      legacy_remote: admin_marketing_coupon
+      aliases:
+        - notificationCoupon
+        - adminMarketingCoupon
+      remote_entry_paths:
+        - /notification-coupon/remoteEntry.js
+        - /admin-marketing-coupon/remoteEntry.js
     packages:
       - "@aftership/admin-marketing-coupon"
+    urls:
+      - https://sdks.am-static.io/notification-coupon/remoteEntry.js
+      - https://sdks.am-static.com/notification-coupon/remoteEntry.js
+    business_aliases:
+      - Coupon
+      - coupon campaign
+      - coupon block
     responsibility: "Coupon campaign admin SDK/MF: coupon list/editor, standard/unique coupons, discount rules, selectors, coupon panel, coupon validation, and billing-gated coupon reuse in email/popup/flow settings."
     related_projects:
       - sdks.am-static.com_admin-email
@@ -358,10 +585,17 @@ projects:
       - popup-coupon-settings
       - flow-notification-coupon-settings
       - coupon-billing-gating
+    notes:
+      - "The npm package output is deprecated for current consumption decisions; prefer MF remote/aio-notification wiring."
 
   - id: sdks.am-static.com_admin-marketing-data
     name: Admin Marketing Data SDK
     type: frontend-sdk
+    aliases:
+      - admin marketing data
+      - admin marketing analytics
+      - notification analytics
+      - analytics remote
     repo_name: sdks.am-static.com_admin-marketing-data
     upstream: https://github.com/AfterShip/sdks.am-static.com_admin-marketing-data.git
     default_branch: master
@@ -372,8 +606,24 @@ projects:
     module_federation:
       enabled: true
       remote: notification_analytics
+      legacy_remote: admin_marketing_analytics
+      aliases:
+        - notificationAnalytics
+        - adminMarketingAnalytics
+      remote_entry_paths:
+        - /notification-analytics/remoteEntry.js
+        - /admin-marketing-analytics/remoteEntry.js
     packages:
       - "@aftership/admin-marketing-data"
+    urls:
+      - https://sdks.am-static.io/notification-analytics/remoteEntry.js
+      - https://sdks.am-static.com/notification-analytics/remoteEntry.js
+    business_aliases:
+      - Notification analytics
+      - Marketing analytics
+      - Notification History
+      - email report
+      - sms report
     responsibility: "Marketing/notification analytics SDK and MF remote for email analytics/report export, SMS report, popup/form analytics, contact dashboard, flow content-group report, notification history hooks, and home overview."
     related_projects:
       - sdks.am-static.com_admin-email
@@ -389,22 +639,45 @@ projects:
       - flow-content-group-report
       - notification-history
       - crm-contact-analytics
+    notes:
+      - "The npm package output is deprecated for current consumption decisions; prefer MF remote/aio-notification wiring."
 
   - id: sdks.am-static.com_admin-flow
     name: Admin Flow SDK
     type: frontend-sdk
+    aliases:
+      - admin flow
+      - notification flow
+      - flow remote
+      - flow editor
+      - flow list
     repo_name: sdks.am-static.com_admin-flow
     upstream: https://github.com/AfterShip/sdks.am-static.com_admin-flow.git
     default_branch: master
     branches:
       production: master
       legacy_v9:
-      active_major: feat/flow-v3
+      active_major: feat/flow-v3-polaris-v13
     module_federation:
       enabled: true
-      remote: admin_flow
+      remote: notification_flow
+      legacy_remote: admin_flow
+      aliases:
+        - notificationFlow
+        - adminFlow
+      remote_entry_paths:
+        - /notification-flow/remoteEntry.js
+        - /admin-flow/remoteEntry.js
     packages:
       - "@aftership/admin-flow"
+    urls:
+      - https://sdks.am-static.io/notification-flow/remoteEntry.js
+      - https://sdks.am-static.com/notification-flow/remoteEntry.js
+    business_aliases:
+      - Flow editor
+      - Flow list
+      - Platform Notification flow editor
+      - Mosaic Flow host
     responsibility: "Admin Flow frontend SDK/MF remote for flow list, template picker, flow editor, subscriber flows, action rendering, local GraphQL operations, and email/SMS/webhook action editing."
     related_projects:
       - bff-api.automizely.com_marketing_admin_v2
@@ -420,10 +693,18 @@ projects:
       - sms-action-content
       - subscriber-flows
       - webhook-action
+    notes:
+      - "The npm package output is deprecated for current consumption decisions; prefer MF remote/aio-notification wiring."
+      - "Production/master flow canvas still uses lego for UI-only flow display; flow-v3 and flow-v3-polaris-v13 use the newer mosaic-flow-oriented model."
 
   - id: product.automizelyapi.com_email-renderer
     name: Email Renderer Service
     type: node-service
+    aliases:
+      - email renderer
+      - email render service
+      - pre-render
+      - prerender
     repo_name: product.automizelyapi.com_email-renderer
     upstream: https://github.com/AfterShip/product.automizelyapi.com_email-renderer.git
     default_branch: master
@@ -434,6 +715,20 @@ projects:
     module_federation:
       enabled: false
     packages: []
+    api_endpoints:
+      - /v1/email-render
+      - /v1/platform-email-render
+      - /v1/email-text-content
+      - /v1/email-features-control
+      - /v1/email-blocks
+    service_hosts:
+      - prod-mt-email-renderer.as-in.io
+      - prod-mt-email-renderer.as-in.com
+    business_aliases:
+      - Email render
+      - pre-render
+      - advanced email server render
+      - platform email render
     responsibility: "NestJS email rendering service for /v1/email-render and /v1/platform-email-render, HTML/text extraction, feature/block inspection, tracking template migration, and advanced email prebuilt-section rendering."
     related_projects:
       - sdks.am-static.com_admin-email
@@ -452,6 +747,11 @@ projects:
   - id: admin.aftership.com
     name: AfterShip Tracking Admin
     type: frontend
+    aliases:
+      - aftership admin
+      - tracking admin
+      - admin tracking
+      - shipment dashboard
     repo_name: admin.aftership.com
     upstream: https://github.com/AfterShip/admin.aftership.com.git
     default_branch: master
@@ -466,6 +766,16 @@ projects:
         - platform_notification
         - aio_notification
     packages: []
+    urls:
+      - https://admin.aftership.io
+      - https://staging-admin.aftership.com
+      - https://admin.aftership.com
+    business_aliases:
+      - Shipment Dashboard
+      - Notification History
+      - resend email
+      - resend sms
+      - ENS
     responsibility: "AfterShip Tracking Admin shell and MF remote; owns Tracking admin route graph, auth/provider stack, shipment notification actions, and ENS/all-in-one notification embedding."
     related_projects:
       - sdks.am-static.com_aio-notification
@@ -485,6 +795,11 @@ projects:
   - id: automizely-frontend-dev-kit
     name: Automizely Frontend Dev Kit
     type: sdk
+    aliases:
+      - frontend dev kit
+      - automizely dev kit
+      - am-publish
+      - graphql hook codegen
     repo_name: automizely-frontend-dev-kit
     upstream: https://github.com/AfterShip/automizely-frontend-dev-kit.git
     default_branch: master
@@ -496,6 +811,10 @@ projects:
       enabled: false
     packages:
       - "@aftership/automizely-frontend-dev-kit"
+    business_aliases:
+      - am-publish
+      - frontend GraphQL hook generator
+      - MF type codegen
     responsibility: "Internal frontend npm toolkit and CLI helpers for GraphQL fetch/runtime hooks, generated GraphQL hooks, Module Federation type downloads, and internal npm publish support."
     related_projects:
       - sdks.am-static.com_aio-notification
@@ -511,6 +830,11 @@ projects:
   - id: subscription.as-list.com
     name: Subscription Preferences Frontend
     type: frontend
+    aliases:
+      - subscription preferences
+      - unsubscribe page
+      - subscription site
+      - shipment review page
     repo_name: subscription.as-list.com
     upstream: https://github.com/AfterShip/subscription.as-list.com.git
     default_branch: master
@@ -521,6 +845,14 @@ projects:
     module_federation:
       enabled: false
     packages: []
+    urls:
+      - https://subscription.as-list.com
+      - https://subscription.as-list.io
+    business_aliases:
+      - C-side page
+      - email unsubscribe
+      - SMS unsubscribe
+      - Shipment review
     responsibility: "Customer-facing subscription/preference/unsubscribe/resubscribe, double opt-in, shipment review, and link-expired landing pages for email/SMS marketing and shipment notification links."
     related_projects:
       - bff-api.automizely.com_marketing_public
@@ -537,6 +869,11 @@ projects:
   - id: emailcat
     name: EmailCat
     type: sdk
+    aliases:
+      - emailcat
+      - easy email
+      - easy email editor
+      - legacy email editor
     repo_name: emailcat
     upstream: https://github.com/AfterShip/emailcat.git
     default_branch: master
@@ -545,9 +882,13 @@ projects:
       legacy_v9:
       active_major:
     module_federation:
-      enabled:
+      enabled: false
     packages:
       - "@aftership/emailcat"
+    business_aliases:
+      - Easy Email editor
+      - legacy email editor
+      - JSON to MJML
     responsibility: "Private TypeScript repo inferred as source for the @aftership/emailcat easy/legacy email editor and JSON-to-MJML render helpers consumed by downstream email repos."
     related_projects:
       - sdks.am-static.com_admin-email
@@ -562,6 +903,11 @@ projects:
   - id: fe-pltf-ens-admin
     name: Notification Admin Portal
     type: frontend
+    aliases:
+      - ens admin
+      - notification admin portal
+      - new admin portal
+      - aio notifications admin
     repo_name: fe-pltf-ens-admin
     upstream: https://github.com/AfterShip/fe-pltf-ens-admin.git
     default_branch: master
@@ -573,6 +919,15 @@ projects:
       enabled: false
       micro_app: single-spa-like
     packages: []
+    urls:
+      - https://admin.automizely.me/aio-notifications/
+      - https://release-incy-admin.automizely.me/aio-notifications/
+      - https://admin.automizely.org/aio-notifications/
+    business_aliases:
+      - Notification Admin Portal
+      - AIO Notifications
+      - Flow Sidekick
+      - SnapForm authoring host
     responsibility: "React Notification Admin Portal SPA for internal operators: flow v3 resources, declarations, templates, graph editor, message/template assets, MailCraft/MailGenie/SnapForm orchestration, debugger tools, and Flow Sidekick UI."
     related_projects:
       - admin.automizelyapi.org_mkt-operations
@@ -593,6 +948,11 @@ projects:
   - id: sdk-nodejs-snap-form
     name: Snap Form SDK
     type: sdk
+    aliases:
+      - snap form
+      - snap-form
+      - dynamic form editor
+      - schema editor
     repo_name: sdk-nodejs-snap-form
     upstream: https://github.com/AfterShip/sdk-nodejs-snap-form.git
     default_branch: master
@@ -604,6 +964,10 @@ projects:
       enabled: false
     packages:
       - "@aftership/snap-form"
+    business_aliases:
+      - Snap Form
+      - Dynamic Form visual editor
+      - Advanced Filters visual editor
     responsibility: "React/GrapesJS visual authoring SDK for Dynamic Form and Advanced Filters schemas; emits schema JSON, previews through underlying renderers, and re-exports runtime helpers."
     related_projects:
       - am-dynamic-form
@@ -620,6 +984,11 @@ projects:
   - id: sdks.am-static.com_aio-notification
     name: All-in-One Notification SDK
     type: frontend-sdk
+    aliases:
+      - aio notification
+      - all in one notification
+      - platform notification
+      - notification facade
     repo_name: sdks.am-static.com_aio-notification
     upstream: https://github.com/AfterShip/sdks.am-static.com_aio-notification.git
     default_branch: master
@@ -629,9 +998,35 @@ projects:
       active_major: feat/flow-v3-polaris-v13
     module_federation:
       enabled: true
-      remote: aio_notification
+      remote: platform_notification
+      legacy_remote: aio_notification
       facade: aftershipNotification
+      aliases:
+        - aftershipNotification
+        - platformNotification
+      remote_entry_paths:
+        - /platform-notification/remoteEntry.js
+        - /aio-notification/remoteEntry.js
+      consumes:
+        - notification_billing
+        - notification_basic
+        - notification_coupon
+        - notification_analytics
+        - notification_sms
+        - notification_crm
+        - notification_email
+        - notification_flow
     packages: []
+    urls:
+      - https://sdks.am-static.io/platform-notification/remoteEntry.js
+      - https://sdks.am-static.io/aio-notification/remoteEntry.js
+      - https://sdks.am-static.com/platform-notification/remoteEntry.js
+      - https://admin.automizely.me/aio-notification-doc
+    business_aliases:
+      - Platform Notification
+      - unified notification facade
+      - Email template editor host
+      - AIO notification docs
     responsibility: "Platform Notification guide/docs site and unified Module Federation facade over billing, basic, CRM, analytics, SMS, email, and flow remotes for business product integration."
     related_projects:
       - sdks.am-static.com_admin-marketing-basic
@@ -648,10 +1043,18 @@ projects:
       - email_sms_settings_and_sender
       - notification_history_and_reporting
       - notification_conditions_advance_filters
+    notes:
+      - "Current master/active-major facade is platform_notification under /platform-notification/remoteEntry.js."
+      - "Legacy master_v9 facade is aio_notification under /aio-notification/remoteEntry.js."
+      - "Apart from marketing.automizely.com, current consumers generally integrate lower-level notification remotes through this facade."
 
   - id: bff-api.automizely.com_marketing_admin
     name: Legacy Marketing Admin BFF
     type: bff
+    aliases:
+      - marketing admin bff
+      - legacy marketing bff
+      - old marketing admin graphql
     repo_name: bff-api.automizely.com_marketing_admin
     upstream: https://github.com/AfterShip/bff-api.automizely.com_marketing_admin.git
     default_branch: master
@@ -662,6 +1065,13 @@ projects:
     module_federation:
       enabled: false
     packages: []
+    api_endpoints:
+      - /marketing/admin/graphql
+      - /marketing/admin/public/graphql
+    business_aliases:
+      - legacy Marketing BFF
+      - old Marketing Admin BFF
+      - Marketing v1 GraphQL
     responsibility: "Legacy Koa/Apollo GraphQL BFF at /marketing/admin/graphql for coupons, campaigns/newsletters, email content/templates, automations/flows, popups/forms, contacts/segments, SMS, analytics, recommendations, and legacy marketing admin aggregation."
     related_projects:
       - marketing.automizely.com
@@ -680,6 +1090,11 @@ projects:
   - id: npm-aftership-advance-filters
     name: Advanced Filters SDK
     type: library
+    aliases:
+      - advanced filters
+      - advance filters
+      - advanced filter sdk
+      - renderAmFilters
     repo_name: npm-aftership-advance-filters
     upstream: https://github.com/AfterShip/npm-aftership-advance-filters.git
     default_branch: master
@@ -691,6 +1106,10 @@ projects:
       enabled: false
     packages:
       - "@aftership/advance-filters"
+    business_aliases:
+      - Advanced Filters
+      - Platform Notification condition filters
+      - flow-v3 filters
     responsibility: "SolidJS Platform Notification advanced condition filter renderer and component SDK with imperative render APIs, schema contracts, dynamic options, expression output, and editor/debug support."
     related_projects:
       - sdk-nodejs-snap-form
@@ -705,6 +1124,10 @@ projects:
   - id: am-filters
     name: AM Filters
     type: library
+    aliases:
+      - am filters
+      - legacy filters
+      - marketing filters
     repo_name: am-filters
     upstream: https://github.com/AfterShip/am-filters.git
     default_branch: master
@@ -716,6 +1139,10 @@ projects:
       enabled: false
     packages:
       - "@aftership/am-filters"
+    business_aliases:
+      - legacy filters
+      - production marketing filters
+      - old flow filters
     responsibility: "Solid/Vite filter editor SDK for legacy marketing filter schema contracts, recursive AND/OR filter UI, JSON schema export, package render entrypoints, and dynamic filter authoring."
     related_projects:
       - admin.automizelyapi.org_mkt-operations
@@ -731,6 +1158,11 @@ projects:
   - id: sdk-ts-mailcraft-editor
     name: MailCraft Editor SDK
     type: sdk
+    aliases:
+      - mailcraft
+      - mailcraft editor
+      - advanced email editor sdk
+      - advanced email renderer
     repo_name: sdk-ts-mailcraft-editor
     upstream: https://github.com/AfterShip/sdk-ts-mailcraft-editor.git
     default_branch: master
@@ -742,6 +1174,11 @@ projects:
       enabled: false
     packages:
       - "@aftership/mailcraft"
+    business_aliases:
+      - MailCraft
+      - advanced email editor
+      - advanced email render
+      - Easy Email replacement
     responsibility: "MailCraft visual email editor and advanced email renderer SDK: GrapesJS/Tiptap editor, component engine, advanced email JSON contract, reusable sections, and server-side advanced email HTML render."
     related_projects:
       - sdks.am-static.com_admin-email
@@ -756,6 +1193,11 @@ projects:
   - id: marketing.automizely.com
     name: Marketing Admin Frontend
     type: frontend
+    aliases:
+      - automizely marketing
+      - marketing admin
+      - mkt
+      - marketing
     repo_name: marketing.automizely.com
     upstream: https://github.com/AfterShip/marketing.automizely.com.git
     default_branch: master
@@ -766,7 +1208,19 @@ projects:
     module_federation:
       enabled: true
       remote: marketingAdmin
+      aliases:
+        - marketingAdmin
     packages: []
+    urls:
+      - https://marketing.automizely.com
+      - https://marketing.automizely.io
+      - https://admin.aftership.com/marketing
+      - https://admin.aftership.io/marketing
+    business_aliases:
+      - Automizely Marketing
+      - MKT
+      - Marketing
+      - legacy Marketing Admin
     responsibility: "Legacy Marketing Admin host/frontend for home, popups/forms, flows, emails/newsletters, SMS, coupons, conversions, contacts/segments, analytics, shopping, billing/settings, recommendation admin, and notification remote composition."
     related_projects:
       - bff-api.automizely.com_marketing_admin
@@ -788,6 +1242,10 @@ projects:
   - id: bff-api.automizely.com_recommendation
     name: Recommendation BFF
     type: bff
+    aliases:
+      - recommendation bff
+      - onsite recommendation bff
+      - on-site recommendation bff
     repo_name: bff-api.automizely.com_recommendation
     upstream: https://github.com/AfterShip/bff-api.automizely.com_recommendation.git
     default_branch: master
@@ -798,6 +1256,13 @@ projects:
     module_federation:
       enabled: false
     packages: []
+    api_endpoints:
+      - /recommendation/admin/graphql
+      - /recommendation/public/graphql
+    business_aliases:
+      - On-site Recommendation
+      - Recommendation BFF
+      - Recommendation public storefront
     responsibility: "Koa/Apollo GraphQL BFF for onsite product recommendation admin/public APIs, recommendation campaign CRUD/status, storefront product resolution, banner config/status, billing gating, and DMS metrics."
     related_projects:
       - recommendation-admin-ts
@@ -814,6 +1279,11 @@ projects:
   - id: lego
     name: Lego Flow Canvas SDK
     type: library
+    aliases:
+      - lego
+      - lego flow
+      - flow canvas
+      - flow orchestration sdk
     repo_name: lego
     upstream: https://github.com/AfterShip/lego.git
     default_branch: master
@@ -825,6 +1295,10 @@ projects:
       enabled: false
     packages:
       - "@aftership/lego"
+    business_aliases:
+      - production flow canvas
+      - flow UI display SDK
+      - legacy flow canvas
     responsibility: "React/Vite SDK for flow canvas rendering, ReactFlow node/edge layout, action/step DSL utilities, drag-to-insert plumbing, and base flow UI primitives."
     related_projects:
       - sdks.am-static.com_admin-flow
@@ -837,6 +1311,11 @@ projects:
   - id: prod-as-notification-dynamic-renderer
     name: Notification Dynamic Renderer
     type: node-service
+    aliases:
+      - dynamic renderer
+      - notification dynamic renderer
+      - dynamic image renderer
+      - shipment progress bar renderer
     repo_name: prod-as-notification-dynamic-renderer
     upstream: https://github.com/AfterShip/prod-as-notification-dynamic-renderer.git
     default_branch: master
@@ -847,6 +1326,18 @@ projects:
     module_federation:
       enabled: false
     packages: []
+    api_endpoints:
+      - /shipment-progress-bar
+      - /v1/cached-transactions
+    service_hosts:
+      - dy-image.as-list.com
+      - staging-dy-image.as-list.com
+      - dy-image.as-list.io
+      - product.automizelyapi.com-dynamic-renderer
+    business_aliases:
+      - dynamic image rendering
+      - shipment progress bar image
+      - email dynamic asset
     responsibility: "NestJS service for notification/email dynamic image rendering, especially shipment progress bar PNG generation, tracking notification snapshot lookup, and PayPal cached-transaction redirect helper."
     related_projects:
       - product.automizelyapi.com_email-renderer
@@ -860,6 +1351,11 @@ projects:
   - id: pltf-nf-cli
     name: Platform Notification CLI
     type: cli
+    aliases:
+      - pn
+      - platform notification cli
+      - notification cli
+      - flow-debug cli
     repo_name: pltf-nf-cli
     upstream: https://github.com/AfterShip/pltf-nf-cli.git
     default_branch: master
@@ -870,7 +1366,13 @@ projects:
     module_federation:
       enabled: false
     packages:
+      - "@aftership/pltf-nf-cli"
       - pn
+    business_aliases:
+      - Platform Notification CLI
+      - flow-debug
+      - flow-trigger
+      - schema drift recovery
     responsibility: "TypeScript/Node CLI for deterministic Platform Notification testing-env reads/writes, schema drift detection, flow-debug passthrough, trace writing, and packaged AI skill bundle install/list/uninstall."
     related_projects:
       - fe-pltf-ens-admin
@@ -884,6 +1386,10 @@ projects:
   - id: recommendation-admin-ts
     name: Recommendation Admin SDK
     type: frontend-sdk
+    aliases:
+      - recommendation admin
+      - recommendation admin sdk
+      - onsite recommendation admin
     repo_name: recommendation-admin-ts
     upstream: https://github.com/AfterShip/recommendation-admin-ts.git
     default_branch: master
@@ -893,8 +1399,15 @@ projects:
       active_major:
     module_federation:
       enabled: true
+      remote: recommendation_admin
+      aliases:
+        - recommendationAdmin
     packages:
       - "@aftership/recommendation-admin-ts"
+    business_aliases:
+      - On-site Recommendation
+      - Recommendation Admin
+      - recommendation campaign editor
     responsibility: "Recommendation admin UI SDK for campaign list/editor/status, metrics, Shopify placement, onboarding/banner surfaces, powered-by setting, and recommendation GraphQL caller layer."
     related_projects:
       - bff-api.automizely.com_recommendation
@@ -910,6 +1423,11 @@ projects:
   - id: aftership-os-notification
     name: AfterShip OS Notification Shell
     type: shell
+    aliases:
+      - aftership os notification
+      - os notification
+      - platform notification demo
+      - notification shell
     repo_name: aftership-os-notification
     upstream: https://github.com/AfterShip/aftership-os-notification.git
     default_branch: master
@@ -920,9 +1438,20 @@ projects:
     module_federation:
       enabled: true
       remote: aftership_os_notification
+      aliases:
+        - aftershipOsNotification
+      remote_entry_paths:
+        - /os-notification/remoteEntry.js
       consumes:
         - platform_notification
     packages: []
+    urls:
+      - https://admin.automizely.me/platform-notification
+      - https://release-incy-admin.automizely.me/platform-notification
+    business_aliases:
+      - AfterShip OS Platform Notification wrapper
+      - Platform Notification demo host
+      - OS notification slots
     responsibility: "Module Federation wrapper/shell for OS hosts to embed notification flows, email editors/templates, and notification settings via ./osNotification with host-runtime adaptation."
     related_projects:
       - sdks.am-static.com_aio-notification
@@ -936,3 +1465,6 @@ projects:
       - system_email_template_editor
       - platform_email_template_editor
       - notification_email_sms_settings
+    notes:
+      - "dev-notifications is currently the latest temporary integration branch, but it should eventually merge toward testing/staging/master."
+      - "This repo customizes host-side slots/config for AfterShip OS and also serves as a Platform Notification demo host."

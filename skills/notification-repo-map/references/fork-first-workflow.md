@@ -28,6 +28,7 @@ git fetch upstream --prune
    - production fix: `upstream/master`
    - legacy v9 fix: `upstream/master_v9`
    - active major work: `upstream/feat/flow-v3-polaris-v13`, or `upstream/feat/flow-v3` when the Polaris branch is absent
+   - repo-specific temporary branch: use only when the project-map notes or user explicitly confirm it for the task, such as `dev-notifications` for `aftership-os-notification`
 
 5. Create the feature branch from upstream:
 
@@ -51,3 +52,16 @@ Stop and report next steps when any of these fail:
 - The repo path exists but `origin` points to AfterShip.
 - `upstream` is missing or points to a non-AfterShip repo.
 - The resolved base branch is not present on upstream.
+
+## Knowledge Correction PRs
+
+When repo-map knowledge is user-confirmed as outdated:
+
+1. Update only the shared skill files that encode stable knowledge, usually `references/project-map.yaml` or this workflow reference.
+2. Do not copy personal local paths into shared files.
+3. Run `scripts/nrm validate`.
+4. Create a branch named `codex/update-notification-repo-map-<slug>`.
+5. Open a PR to the skill repo with a short Chinese summary:
+   - 哪些项目被更新
+   - 哪些判断/分支/URL/MF/API 逻辑改变
+   - 用户已确认 Skill 旧知识过期

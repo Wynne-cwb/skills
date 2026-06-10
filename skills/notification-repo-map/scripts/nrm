@@ -2,7 +2,11 @@
 # frozen_string_literal: true
 
 require "fileutils"
+require "find"
+require "json"
 require "open3"
+require "set"
+require "shellwords"
 require "yaml"
 
 SKILL_DIR = File.expand_path("..", __dir__)
@@ -12,12 +16,36 @@ DEFAULT_CONFIG_PATH = File.expand_path("~/.config/notification-repo-map/config.y
 PROJECT_MAP_PATH = ENV.fetch("NRM_PROJECT_MAP", DEFAULT_PROJECT_MAP_PATH)
 CONFIG_PATH = ENV.fetch("NRM_CONFIG", DEFAULT_CONFIG_PATH)
 
+DEFAULT_CONFIG = {
+  "workspace_roots" => [],
+  "projects" => {},
+  "clone" => {
+    "missing_projects" => "ask"
+  },
+  "fork" => {
+    "missing_forks" => "ask"
+  },
+  "codegraph" => {
+    "enabled" => true,
+    "install_if_missing" => true,
+    "init_on_bootstrap" => true,
+    "init_on_ensure" => true
+  }
+}.freeze
+
 def usage
   warn <<~USAGE
     Usage:
+      nrm lookup <query> [--json] [--limit N]
+      nrm show <project-id> [--json]
+      nrm scan --root <path>... [--json]
       nrm resolve <project-id>
       nrm ensure <project-id>
-      nrm doctor
+      nrm doctor [--repair-paths]
+      nrm validate
+      nrm codegraph doctor
+      nrm codegraph install
+      nrm codegraph init <project-id|--all>
 
     Environment overrides:
       NRM_CONFIG=<path>
@@ -29,6 +57,19 @@ end
 def die(message, code = 1)
   warn "ERROR: #{message}"
   exit code
+end
+
+def deep_merge(defaults, values)
+  result = defaults.dup
+  values.each do |key, value|
+    result[key] =
+      if result[key].is_a?(Hash) && value.is_a?(Hash)
+        deep_merge(result[key], value)
+      else
+        value
+      end
+  end
+  result
 end
 
 def load_yaml_file(path, required: true)
@@ -45,13 +86,10 @@ rescue Psych::SyntaxError => e
 end
 
 def load_config(required: true)
-  cfg = load_yaml_file(CONFIG_PATH, required: required)
-  return nil unless cfg
+  raw = load_yaml_file(CONFIG_PATH, required: required)
+  return nil unless raw
 
-  cfg["projects"] ||= {}
-  cfg["clone"] ||= {}
-  cfg["fork"] ||= {}
-  cfg
+  deep_merge(DEFAULT_CONFIG, raw)
 end
 
 def load_project_map
@@ -62,13 +100,24 @@ def load_project_map
   project_map
 end
 
+def projects(project_map)
+  project_map.fetch("projects")
+end
+
 def run_capture(*cmd, cwd: nil)
   options = cwd ? { chdir: cwd } : {}
   stdout, stderr, status = Open3.capture3(*cmd, **options)
   [status.success?, stdout.strip, stderr.strip, status.exitstatus]
 end
 
+def run_passthrough(*cmd, cwd: nil)
+  system(*cmd, chdir: cwd)
+end
+
 def command_available?(name)
+  ok, = run_capture("sh", "-c", "command -v #{Shellwords.escape(name)}")
+  ok
+rescue NameError
   ok, = run_capture("sh", "-c", "command -v #{name}")
   ok
 end
@@ -90,26 +139,72 @@ def normalize_git_url(url)
   "#{parts[-2].downcase}/#{parts[-1].downcase}"
 end
 
-def remote_url(path, name)
-  ok, stdout, = run_capture("git", "-C", path, "remote", "get-url", name)
-  ok ? stdout : nil
+def canonical_lookup_key(value)
+  s = value.to_s.strip.downcase
+  return nil if s.empty?
+
+  s = s.sub(%r{\Ahttps?://}, "")
+  s = s.sub(%r{\Assh://git@github.com/}, "github.com/")
+  s = s.sub(%r{\Agit@github.com:}, "github.com/")
+  s = s.sub(%r{\A//}, "")
+  s = s.sub(/[?#].*\z/, "")
+  s = s.sub(%r{\.git\z}, "")
+  s = s.gsub(%r{/+}, "/")
+  s = s.sub(%r{\A/}, "")
+  s = s.sub(%r{/\z}, "")
+  s.empty? ? nil : s
 end
 
-def git_repo?(path)
-  ok, stdout, = run_capture("git", "-C", path, "rev-parse", "--is-inside-work-tree")
-  ok && stdout == "true"
+def lookup_keys_for(value)
+  raw = value.to_s.strip
+  keys = Set.new
+  canonical = canonical_lookup_key(raw)
+  keys << canonical if canonical
+
+  if raw =~ %r{\Ahttps?://[^/]+(/.*)\z}i
+    path = Regexp.last_match(1)
+    path_key = canonical_lookup_key(path)
+    keys << path_key if path_key
+  end
+
+  if raw.include?("@github.com:") || raw.include?("github.com/")
+    slug = normalize_git_url(raw)
+    keys << slug if slug
+    keys << "github.com/#{slug}" if slug
+  end
+
+  keys.to_a.compact
+end
+
+def array_value(value)
+  case value
+  when Array
+    value.compact
+  when nil
+    []
+  else
+    [value]
+  end
 end
 
 def project_candidates(project)
   values = [project["id"], project["repo_name"]]
-  values.concat(project["aliases"]) if project["aliases"].is_a?(Array)
+  values.concat(array_value(project["aliases"]))
   values.compact.uniq
 end
 
 def find_project(project_map, input)
-  project_map.fetch("projects").find do |project|
-    project_candidates(project).include?(input)
-  end
+  exact = projects(project_map).find { |project| project_candidates(project).include?(input) }
+  return exact if exact
+
+  matches = lookup_matches(project_map, input, config: nil, limit: 2)
+  return matches.first[:project] if matches.length == 1 && %w[exact strong].include?(matches.first[:confidence])
+
+  nil
+end
+
+def project_by_repo_name(project_map)
+  projects(project_map).to_h { |project| [project.fetch("repo_name").downcase, project] }
 end
 
 def upstream_owner(project_map)
@@ -144,6 +239,16 @@ def expected_fork_slug(config, project)
   return nil unless owner
 
   "#{owner.downcase}/#{project.fetch("repo_name").downcase}"
+end
+
+def remote_url(path, name)
+  ok, stdout, = run_capture("git", "-C", path, "remote", "get-url", name)
+  ok ? stdout : nil
+end
+
+def git_repo?(path)
+  ok, stdout, = run_capture("git", "-C", path, "rev-parse", "--is-inside-work-tree")
+  ok && stdout == "true"
 end
 
 def save_config(config)
@@ -210,16 +315,316 @@ def create_fork!(project_map, config, project)
   puts stdout unless stdout.empty?
 end
 
-def print_branch_hint(project)
-  branches = project["branches"] || {}
-  active = branches["active_major"]
-  production = branches["production"]
-  legacy = branches["legacy_v9"]
-  hints = []
-  hints << "production=#{production}" if production
-  hints << "legacy_v9=#{legacy}" if legacy
-  hints << "active_major=#{active}" if active
-  puts "branch tracks: #{hints.join(", ")}" unless hints.empty?
+def lookup_entries_for_project(project)
+  entries = []
+  add = lambda do |label, value|
+    array_value(value).each do |item|
+      lookup_keys_for(item).each do |key|
+        entries << { key: key, label: label, value: item.to_s, project: project }
+      end
+    end
+  end
+
+  add.call("project.id", project["id"])
+  add.call("project.repo_name", project["repo_name"])
+  add.call("project.name", project["name"])
+  add.call("project.aliases", project["aliases"])
+  add.call("project.upstream", project["upstream"])
+  add.call("packages", project["packages"])
+  add.call("flows", project["flows"])
+  add.call("business_aliases", project["business_aliases"])
+  add.call("urls", project["urls"])
+  add.call("api_endpoints", project["api_endpoints"])
+  add.call("service_hosts", project["service_hosts"])
+
+  mf = project["module_federation"] || {}
+  add.call("module_federation.remote", mf["remote"])
+  add.call("module_federation.legacy_remote", mf["legacy_remote"])
+  add.call("module_federation.remotes", mf["remotes"])
+  add.call("module_federation.aliases", mf["aliases"])
+  add.call("module_federation.facade", mf["facade"])
+  add.call("module_federation.remote_entry_paths", mf["remote_entry_paths"])
+  add.call("module_federation.subdirectory", mf["subdirectory"])
+  add.call("module_federation.consumes", mf["consumes"])
+
+  entries
+end
+
+def all_lookup_entries(project_map)
+  projects(project_map).flat_map { |project| lookup_entries_for_project(project) }
+end
+
+def summary_for(project)
+  project["responsibility"].to_s.split(/[.。]/).first.to_s.strip
+end
+
+def configured_path_for(config, project)
+  return nil unless config
+
+  raw = config.fetch("projects", {})[project["id"]]
+  return nil if raw.to_s.empty?
+
+  File.expand_path(raw)
+end
+
+def merge_match(matches, project, confidence, label, value, score)
+  id = project.fetch("id")
+  matches[id] ||= {
+    project: project,
+    confidence: confidence,
+    matched_by: Set.new,
+    matched_values: Set.new,
+    score: score
+  }
+  matches[id][:matched_by] << label
+  matches[id][:matched_values] << value
+
+  if score > matches[id][:score]
+    matches[id][:confidence] = confidence
+    matches[id][:score] = score
+  end
+end
+
+def exact_label_score(label)
+  case label
+  when "urls", "api_endpoints", "service_hosts"
+    100
+  when "packages"
+    96
+  when /\Amodule_federation\./
+    92
+  when "project.id", "project.repo_name", "project.aliases", "project.upstream"
+    88
+  when "business_aliases"
+    76
+  when "flows"
+    70
+  else
+    65
+  end
+end
+
+def fuzzy_score(query_key, entry, project)
+  haystack = [
+    entry[:key],
+    entry[:value],
+    project["id"],
+    project["repo_name"],
+    project["name"],
+    project["responsibility"],
+    array_value(project["business_aliases"]).join(" "),
+    array_value(project["flows"]).join(" ")
+  ].compact.join(" ").downcase
+
+  return 75 if entry[:key].include?(query_key) || query_key.include?(entry[:key])
+
+  words = query_key.split(/[^a-z0-9@._-]+/).reject { |w| w.length < 3 }
+  return 0 if words.empty?
+
+  hits = words.count { |word| haystack.include?(word) }
+  return 0 if hits.zero?
+
+  40 + ((hits.to_f / words.length) * 30).round
+end
+
+def lookup_matches(project_map, query, config:, limit: 10)
+  query_keys = lookup_keys_for(query)
+  die("Lookup query is empty", 2) if query_keys.empty?
+
+  entries = all_lookup_entries(project_map)
+  matches = {}
+
+  entries.each do |entry|
+    if query_keys.include?(entry[:key])
+      merge_match(matches, entry[:project], "exact", entry[:label], entry[:value], exact_label_score(entry[:label]))
+    end
+  end
+
+  if matches.empty?
+    entries.each do |entry|
+      query_keys.each do |query_key|
+        score = fuzzy_score(query_key, entry, entry[:project])
+        next if score < 55
+
+        confidence = score >= 75 ? "strong" : "fuzzy"
+        merge_match(matches, entry[:project], confidence, entry[:label], entry[:value], score)
+      end
+    end
+  end
+
+  matches.values
+         .sort_by { |match| [-match[:score], match[:project]["id"]] }
+         .first(limit)
+         .map do |match|
+           project = match[:project]
+           path = configured_path_for(config, project)
+           match.merge(
+             path: path,
+             path_exists: path ? Dir.exist?(path) : false,
+             summary: summary_for(project),
+             matched_by: match[:matched_by].to_a.sort,
+             matched_values: match[:matched_values].to_a.sort
+           )
+         end
+end
+
+def match_to_json(match)
+  {
+    project_id: match[:project]["id"],
+    confidence: match[:confidence],
+    matched_by: match[:matched_by],
+    matched_values: match[:matched_values],
+    path: match[:path],
+    path_exists: match[:path_exists],
+    summary: match[:summary]
+  }
+end
+
+def cmd_lookup(argv)
+  json = false
+  limit = 10
+  query_parts = []
+
+  until argv.empty?
+    arg = argv.shift
+    case arg
+    when "--json"
+      json = true
+    when "--limit"
+      limit = Integer(argv.shift || usage)
+    else
+      query_parts << arg
+    end
+  end
+
+  query = query_parts.join(" ").strip
+  usage if query.empty?
+
+  project_map = load_project_map
+  config = load_config(required: false)
+  matches = lookup_matches(project_map, query, config: config, limit: limit)
+
+  if json
+    puts JSON.pretty_generate({ query: query, matches: matches.map { |match| match_to_json(match) } })
+    return
+  end
+
+  if matches.empty?
+    puts "No project matches #{query.inspect}."
+    exit 2
+  end
+
+  matches.each do |match|
+    project = match[:project]
+    puts "#{project["id"]} [#{match[:confidence]}]"
+    puts "  matched_by: #{match[:matched_by].join(", ")}"
+    puts "  matched_values: #{match[:matched_values].join(", ")}"
+    puts "  path: #{match[:path] || "(not configured)"}"
+    puts "  summary: #{match[:summary]}" unless match[:summary].empty?
+  end
+end
+
+def cmd_show(argv)
+  json = false
+  input = nil
+
+  until argv.empty?
+    arg = argv.shift
+    case arg
+    when "--json"
+      json = true
+    else
+      input ||= arg
+    end
+  end
+
+  usage unless input
+
+  project_map = load_project_map
+  config = load_config(required: false)
+  project = find_project(project_map, input)
+  die("Unknown project id, repo name, alias, or lookup value: #{input}", 2) unless project
+
+  path = configured_path_for(config, project)
+  payload = project.merge(
+    "path" => path,
+    "path_exists" => path ? Dir.exist?(path) : false
+  )
+
+  if json
+    puts JSON.pretty_generate(payload)
+    return
+  end
+
+  puts "#{project["id"]} - #{project["name"]}"
+  puts "type: #{project["type"]}"
+  puts "repo: #{project["upstream"]}"
+  puts "path: #{path || "(not configured)"}"
+  puts "branches: #{project["branches"] || {}}"
+  puts "packages: #{array_value(project["packages"]).join(", ")}" unless array_value(project["packages"]).empty?
+  mf = project["module_federation"] || {}
+  if mf["enabled"]
+    values = [mf["remote"], mf["legacy_remote"], array_value(mf["aliases"]).join(", ")].reject { |v| v.to_s.empty? }
+    puts "module_federation: #{values.join(" / ")}"
+  end
+  puts "api_endpoints: #{array_value(project["api_endpoints"]).join(", ")}" unless array_value(project["api_endpoints"]).empty?
+  puts "service_hosts: #{array_value(project["service_hosts"]).join(", ")}" unless array_value(project["service_hosts"]).empty?
+  puts "responsibility: #{project["responsibility"]}"
+  puts "related_projects: #{array_value(project["related_projects"]).join(", ")}"
+  puts "flows: #{array_value(project["flows"]).join(", ")}"
+end
+
+def remotes_for(path)
+  {
+    "origin" => remote_url(path, "origin"),
+    "upstream" => remote_url(path, "upstream"),
+    "local" => remote_url(path, "local")
+  }.compact
+end
+
+def match_repo_path(project_map, path)
+  remotes = remotes_for(path)
+  slugs = remotes.values.map { |url| normalize_git_url(url) }.compact
+  upstream_index = projects(project_map).to_h { |project| [expected_upstream_slug(project), project] }
+  repo_index = project_by_repo_name(project_map)
+
+  slugs.each do |slug|
+    return [upstream_index[slug], "upstream-url"] if upstream_index[slug]
+  end
+
+  slugs.each do |slug|
+    repo = slug.split("/").last
+    return [repo_index[repo], "repo-name-from-remote"] if repo_index[repo]
+  end
+
+  basename = File.basename(path).downcase
+  return [repo_index[basename], "directory-name"] if repo_index[basename]
+
+  [nil, nil]
+end
+
+def discover_git_repos(roots)
+  repos = []
+  roots.map { |root| File.expand_path(root) }.uniq.each do |root|
+    next unless Dir.exist?(root)
+
+    Find.find(root) do |path|
+      if File.basename(path) == ".git"
+        Find.prune
+        next
+      end
+
+      next unless File.directory?(path)
+
+      if File.directory?(File.join(path, ".git")) && git_repo?(path)
+        repos << path
+        Find.prune
+      end
+    rescue Errno::EACCES
+      Find.prune
+    end
+  end
+  repos.uniq.sort
 end
 
 def remote_shape(path, project, config)
@@ -260,6 +665,143 @@ def remote_shape(path, project, config)
   [issues.empty?, issues, hints]
 end
 
+def scan_roots(project_map, roots, config: nil)
+  expanded_roots = roots.map { |root| File.expand_path(root) }.uniq
+  repo_paths = discover_git_repos(expanded_roots)
+  matched_projects = []
+  unmapped_git_repos = []
+  remote_issues = []
+
+  repo_paths.each do |path|
+    project, matched_by = match_repo_path(project_map, path)
+    remotes = remotes_for(path)
+
+    if project
+      item = {
+        "project_id" => project["id"],
+        "repo_name" => project["repo_name"],
+        "path" => path,
+        "matched_by" => matched_by,
+        "remotes" => remotes
+      }
+      matched_projects << item
+
+      if config
+        ok, issues, hints = remote_shape(path, project, config)
+        unless ok
+          remote_issues << item.merge("issues" => issues, "hints" => hints)
+        end
+      end
+    else
+      unmapped_git_repos << {
+        "path" => path,
+        "remotes" => remotes
+      }
+    end
+  end
+
+  matched_ids = matched_projects.map { |item| item["project_id"] }.to_set
+  missing_projects = projects(project_map).reject { |project| matched_ids.include?(project["id"]) }.map do |project|
+    {
+      "project_id" => project["id"],
+      "repo_name" => project["repo_name"]
+    }
+  end
+
+  candidate_dirs = candidate_dirs_for(expanded_roots, missing_projects)
+
+  {
+    "roots" => expanded_roots,
+    "matched_projects" => matched_projects.sort_by { |item| [item["project_id"], item["path"]] },
+    "missing_projects" => missing_projects.sort_by { |item| item["project_id"] },
+    "remote_issues" => remote_issues.sort_by { |item| [item["project_id"], item["path"]] },
+    "unmapped_git_repos" => unmapped_git_repos.sort_by { |item| item["path"] },
+    "candidate_dirs" => candidate_dirs.sort_by { |item| [item["project_id"], item["path"]] }
+  }
+end
+
+def candidate_dirs_for(roots, missing_projects)
+  wanted = missing_projects.to_h { |item| [item["repo_name"].downcase, item] }
+  candidates = []
+
+  roots.each do |root|
+    next unless Dir.exist?(root)
+
+    root_depth = root.split(File::SEPARATOR).length
+    Find.find(root) do |path|
+      next unless File.directory?(path)
+
+      depth = path.split(File::SEPARATOR).length - root_depth
+      if depth > 4
+        Find.prune
+        next
+      end
+
+      item = wanted[File.basename(path).downcase]
+      next unless item
+      next if git_repo?(path)
+
+      candidates << {
+        "project_id" => item["project_id"],
+        "repo_name" => item["repo_name"],
+        "path" => path
+      }
+    rescue Errno::EACCES
+      Find.prune
+    end
+  end
+
+  candidates
+end
+
+def scan_roots_from_config(config)
+  roots = array_value(config["workspace_roots"])
+  roots << config["default_clone_root"] unless config["default_clone_root"].to_s.empty?
+  roots.compact.map(&:to_s).reject(&:empty?).uniq
+end
+
+def cmd_scan(argv)
+  json = false
+  roots = []
+
+  until argv.empty?
+    arg = argv.shift
+    case arg
+    when "--json"
+      json = true
+    when "--root"
+      roots << (argv.shift || usage)
+    else
+      usage
+    end
+  end
+
+  config = load_config(required: false)
+  roots = scan_roots_from_config(config) if roots.empty? && config
+  usage if roots.empty?
+
+  project_map = load_project_map
+  result = scan_roots(project_map, roots, config: config)
+
+  if json
+    puts JSON.pretty_generate(result)
+    return
+  end
+
+  puts "roots:"
+  result["roots"].each { |root| puts "  - #{root}" }
+  puts "matched_projects: #{result["matched_projects"].length}"
+  result["matched_projects"].each { |item| puts "  - #{item["project_id"]}: #{item["path"]} (#{item["matched_by"]})" }
+  puts "missing_projects: #{result["missing_projects"].length}"
+  result["missing_projects"].first(50).each { |item| puts "  - #{item["project_id"]}" }
+  puts "remote_issues: #{result["remote_issues"].length}"
+  result["remote_issues"].each { |item| puts "  - #{item["project_id"]}: #{item["issues"].join("; ")}" }
+  puts "unmapped_git_repos: #{result["unmapped_git_repos"].length}"
+  result["unmapped_git_repos"].each { |item| puts "  - #{item["path"]}" }
+  puts "candidate_dirs: #{result["candidate_dirs"].length}"
+  result["candidate_dirs"].each { |item| puts "  - #{item["project_id"]}: #{item["path"]}" }
+end
+
 def report_remote_shape!(path, project, config)
   ok, issues, hints = remote_shape(path, project, config)
   return true if ok
@@ -271,6 +813,18 @@ def report_remote_shape!(path, project, config)
   warn "  origin   -> user fork"
   warn "  upstream -> #{project["upstream"]}"
   false
+end
+
+def print_branch_hint(project)
+  branches = project["branches"] || {}
+  active = branches["active_major"]
+  production = branches["production"]
+  legacy = branches["legacy_v9"]
+  hints = []
+  hints << "production=#{production}" if production
+  hints << "legacy_v9=#{legacy}" if legacy
+  hints << "active_major=#{active}" if active
+  puts "branch tracks: #{hints.join(", ")}" unless hints.empty?
 end
 
 def cmd_resolve(argv)
@@ -287,6 +841,66 @@ def cmd_resolve(argv)
   puts expanded
 end
 
+def find_existing_project_path(config, project_map, project)
+  roots = scan_roots_from_config(config)
+  return nil if roots.empty?
+
+  result = scan_roots(project_map, roots, config: config)
+  matches = result["matched_projects"].select { |item| item["project_id"] == project["id"] }
+  return nil if matches.empty?
+
+  paths = matches.map { |item| item["path"] }.uniq.sort
+  if paths.length > 1
+    die("Multiple local checkouts match #{project["id"]}; update #{CONFIG_PATH} manually:\n  - #{paths.join("\n  - ")}", 3)
+  end
+
+  paths.first
+end
+
+def codegraph_config_enabled?(config)
+  config.dig("codegraph", "enabled") != false
+end
+
+def codegraph_install_if_needed(config)
+  return true if command_available?("codegraph")
+  return false unless config.dig("codegraph", "install_if_missing")
+
+  unless command_available?("npm")
+    warn "CodeGraph is not installed and npm is not available. Install @colbymchenry/codegraph manually."
+    return false
+  end
+
+  warn "CodeGraph is not installed. Installing with npm i -g @colbymchenry/codegraph ..."
+  return false unless run_passthrough("npm", "i", "-g", "@colbymchenry/codegraph")
+
+  if command_available?("codegraph")
+    run_passthrough("codegraph", "install")
+    true
+  else
+    warn "CodeGraph install command completed, but codegraph is still not on PATH."
+    false
+  end
+end
+
+def codegraph_init_path(path, config)
+  return unless codegraph_config_enabled?(config)
+  return unless Dir.exist?(path)
+  return unless codegraph_install_if_needed(config)
+
+  ok, stdout, stderr, = run_capture("codegraph", "init", "-i", cwd: path)
+  if ok
+    puts stdout unless stdout.empty?
+  else
+    warn "CodeGraph init failed for #{path}: #{stderr}"
+  end
+end
+
+def maybe_init_codegraph_after_ensure(path, config)
+  return unless config.dig("codegraph", "init_on_ensure")
+
+  codegraph_init_path(path, config)
+end
+
 def cmd_ensure(argv)
   input = argv.shift || usage
   usage unless argv.empty?
@@ -294,7 +908,7 @@ def cmd_ensure(argv)
   config = load_config(required: true)
   project_map = load_project_map
   project = find_project(project_map, input)
-  die("Unknown project id or repo name: #{input}", 2) unless project
+  die("Unknown project id, repo name, alias, or lookup value: #{input}", 2) unless project
 
   id = project.fetch("id")
   repo = project.fetch("repo_name")
@@ -308,10 +922,22 @@ def cmd_ensure(argv)
       report_remote_shape!(path, project, config) || exit(3)
       puts path
       print_branch_hint(project)
+      maybe_init_codegraph_after_ensure(path, config)
       return
     end
 
-    warn "Configured path for #{id} does not exist and will be treated as missing: #{path}"
+    warn "Configured path for #{id} does not exist and will be repaired if a matching checkout is found: #{path}"
+  end
+
+  repaired_path = find_existing_project_path(config, project_map, project)
+  if repaired_path
+    report_remote_shape!(repaired_path, project, config) || exit(3)
+    config["projects"][id] = repaired_path
+    save_config(config)
+    puts repaired_path
+    print_branch_hint(project)
+    maybe_init_codegraph_after_ensure(repaired_path, config)
+    return
   end
 
   clone_root = config["default_clone_root"]
@@ -326,6 +952,7 @@ def cmd_ensure(argv)
     save_config(config)
     puts target
     print_branch_hint(project)
+    maybe_init_codegraph_after_ensure(target, config)
     return
   end
 
@@ -361,6 +988,7 @@ def cmd_ensure(argv)
   report_remote_shape!(target, project, config) || exit(3)
   puts target
   print_branch_hint(project)
+  maybe_init_codegraph_after_ensure(target, config)
 end
 
 def doctor_report(status, label, detail = nil)
@@ -382,8 +1010,39 @@ def ssh_ok?
   [false, "exit=#{status} #{output.strip}"]
 end
 
+def repair_missing_paths!(config, project_map)
+  changed = false
+  mapped = config.fetch("projects", {})
+
+  mapped.keys.sort.each do |id|
+    raw_path = mapped[id]
+    next if raw_path && Dir.exist?(File.expand_path(raw_path))
+
+    project = find_project(project_map, id)
+    next unless project
+
+    path = find_existing_project_path(config, project_map, project)
+    next unless path
+
+    config["projects"][id] = path
+    changed = true
+    doctor_report("OK", "repaired project #{id} path", path)
+  end
+
+  save_config(config) if changed
+  changed
+end
+
 def cmd_doctor(argv)
-  usage unless argv.empty?
+  repair_paths = false
+  until argv.empty?
+    case argv.shift
+    when "--repair-paths"
+      repair_paths = true
+    else
+      usage
+    end
+  end
 
   failures = 0
   warnings = 0
@@ -429,8 +1088,8 @@ def cmd_doctor(argv)
 
   if config
     if fork_owner(config).to_s.strip.empty?
-      failures += 1
-      doctor_report("FAIL", "fork owner configured", "Set github_user or fork.owner in #{CONFIG_PATH}.")
+      warnings += 1
+      doctor_report("WARN", "fork owner configured", "Set github_user or fork.owner in #{CONFIG_PATH}.")
     else
       doctor_report("OK", "fork owner configured", fork_owner(config))
     end
@@ -445,7 +1104,38 @@ def cmd_doctor(argv)
       warnings += 1
       doctor_report("WARN", "default_clone_root missing", File.expand_path(clone_root))
     end
+
+    workspace_roots = array_value(config["workspace_roots"]).map { |root| File.expand_path(root.to_s) }
+    if workspace_roots.empty?
+      warnings += 1
+      doctor_report("WARN", "workspace_roots configured", "No workspace roots are configured.")
+    else
+      missing = workspace_roots.reject { |root| Dir.exist?(root) }
+      if missing.empty?
+        doctor_report("OK", "workspace_roots exist", workspace_roots.join(", "))
+      else
+        warnings += 1
+        doctor_report("WARN", "workspace_roots missing", missing.join(", "))
+      end
+    end
+
+    codegraph = config["codegraph"] || {}
+    if codegraph_config_enabled?(config)
+      if command_available?("codegraph")
+        doctor_report("OK", "CodeGraph installed")
+      elsif codegraph["install_if_missing"]
+        warnings += 1
+        doctor_report("WARN", "CodeGraph installed", "Missing; nrm codegraph install can install @colbymchenry/codegraph.")
+      else
+        warnings += 1
+        doctor_report("WARN", "CodeGraph installed", "Missing and install_if_missing=false.")
+      end
+    else
+      doctor_report("OK", "CodeGraph disabled")
+    end
   end
+
+  repair_missing_paths!(config, project_map) if repair_paths && config && project_map
 
   if config && project_map
     mapped = config.fetch("projects", {})
@@ -497,14 +1187,140 @@ def cmd_doctor(argv)
   exit(failures.zero? ? 0 : 1)
 end
 
+def validate_no_personal_paths!(failures)
+  content = File.read(PROJECT_MAP_PATH)
+  if content.match?(%r{/(Users|home)/[^"'\s]+})
+    failures << "project-map contains what looks like a personal absolute path"
+  end
+end
+
+def cmd_validate(argv)
+  usage unless argv.empty?
+
+  failures = []
+  warnings = []
+  project_map = load_project_map
+  ids = Set.new
+  repo_names = Set.new
+
+  projects(project_map).each do |project|
+    id = project["id"].to_s
+    repo = project["repo_name"].to_s
+    failures << "project has missing id: #{project.inspect}" if id.empty?
+    failures << "duplicate project id: #{id}" if ids.include?(id)
+    ids << id
+    failures << "project #{id} has missing repo_name" if repo.empty?
+    failures << "duplicate repo_name: #{repo}" if repo_names.include?(repo.downcase)
+    repo_names << repo.downcase
+    failures << "project #{id} has missing upstream" if project["upstream"].to_s.empty?
+
+    array_value(project["related_projects"]).each do |related|
+      failures << "project #{id} related_project #{related} is not in project map" unless ids.include?(related) || projects(project_map).any? { |p| p["id"] == related }
+    end
+  end
+
+  validate_no_personal_paths!(failures)
+
+  risky = Hash.new { |hash, key| hash[key] = Set.new }
+  high_risk_labels = Set.new([
+    "project.id",
+    "project.repo_name",
+    "project.aliases",
+    "project.upstream",
+    "packages",
+    "urls",
+    "api_endpoints",
+    "service_hosts",
+    "module_federation.remote",
+    "module_federation.legacy_remote",
+    "module_federation.remotes",
+    "module_federation.aliases",
+    "module_federation.facade",
+    "module_federation.remote_entry_paths",
+    "module_federation.subdirectory"
+  ])
+
+  all_lookup_entries(project_map).each do |entry|
+    next if entry[:key].length < 3
+    next unless high_risk_labels.include?(entry[:label])
+
+    risky[[entry[:label], entry[:key]]] << entry[:project]["id"]
+  end
+  risky.each do |(label, key), project_ids|
+    next if project_ids.length < 2
+
+    failures << "lookup key conflict for #{label} #{key.inspect}: #{project_ids.to_a.sort.join(", ")}"
+  end
+
+  if failures.empty?
+    puts "validate: OK (#{projects(project_map).length} projects)"
+    warnings.each { |warning| warn "WARN: #{warning}" }
+  else
+    failures.each { |failure| warn "FAIL: #{failure}" }
+    warnings.each { |warning| warn "WARN: #{warning}" }
+    exit 1
+  end
+end
+
+def cmd_codegraph(argv)
+  subcommand = argv.shift || usage
+  config = load_config(required: false) || deep_merge(DEFAULT_CONFIG, {})
+
+  case subcommand
+  when "doctor"
+    if command_available?("codegraph")
+      ok, stdout, stderr, = run_capture("codegraph", "--version")
+      detail = ok ? stdout : stderr
+      doctor_report("OK", "CodeGraph installed", detail)
+    else
+      doctor_report("FAIL", "CodeGraph installed", "Run: nrm codegraph install")
+      exit 1
+    end
+  when "install"
+    exit(codegraph_install_if_needed(config) ? 0 : 1)
+  when "init"
+    target = argv.shift || usage
+    usage unless argv.empty?
+
+    project_map = load_project_map
+    full_config = load_config(required: true)
+    paths =
+      if target == "--all"
+        full_config.fetch("projects", {}).values.map { |path| File.expand_path(path) }.select { |path| Dir.exist?(path) }
+      else
+        project = find_project(project_map, target)
+        die("Unknown project: #{target}", 2) unless project
+
+        path = configured_path_for(full_config, project)
+        die("Project #{project["id"]} is not mapped or path does not exist", 2) unless path && Dir.exist?(path)
+
+        [path]
+      end
+
+    paths.each { |path| codegraph_init_path(path, full_config) }
+  else
+    usage
+  end
+end
+
 command = ARGV.shift || usage
 case command
+when "lookup"
+  cmd_lookup(ARGV)
+when "show"
+  cmd_show(ARGV)
+when "scan"
+  cmd_scan(ARGV)
 when "resolve"
   cmd_resolve(ARGV)
 when "ensure"
   cmd_ensure(ARGV)
 when "doctor"
   cmd_doctor(ARGV)
+when "validate"
+  cmd_validate(ARGV)
+when "codegraph"
+  cmd_codegraph(ARGV)
 else
   usage
 end
